@@ -1,0 +1,20 @@
+# Run with: docker compose --env-file ../.env -f docker-compose.yml up --build
+# (--env-file makes the build args below resolve from the repo's real .env)
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+        NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET}
+    env_file: ../.env
+    ports:
+      - "3000:3000"
+
+# No local Postgres/db service here on purpose: the app talks to Postgres via
+# `drizzle-orm/neon-http` + `@neondatabase/serverless`'s `neon()` function,
+# which speaks Neon's serverless HTTP/websocket proxy protocol specifically —
+# it does not work against a plain `postgres:*` image. DATABASE_URL in .env
+# must point at a real Neon database (a branch is fine for local/dev use),
+# the same way Vercel's own deployment does.
