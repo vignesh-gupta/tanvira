@@ -15,6 +15,13 @@
       "when": 1788010515850,
       "tag": "0001_white_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788010994213,
+      "tag": "0002_unusual_lily_hollister",
+      "breakpoints": true
     }
   ]
 }

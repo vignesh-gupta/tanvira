@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 
 import * as authSchema from "./auth-schema"
@@ -26,6 +27,13 @@ export const {
  * APP TABLES (transactional data — orders, addresses, promos)
  * ─────────────────────────────────────────────────────────────
  */
+
+export type OrderItem = {
+  productId: string
+  name: string
+  price: number // paise, snapshotted at order time
+  qty: number
+}
 
 export const orderStatusEnum = pgEnum("order_status", [
   "placed",
@@ -70,7 +78,7 @@ export const orders = pgTable("orders", {
     .notNull()
     .references(() => addresses.id, { onDelete: "restrict" }),
   status: orderStatusEnum("status").notNull().default("placed"),
-  items: jsonb("items").notNull(),
+  items: jsonb("items").notNull().$type<OrderItem[]>(),
   subtotal: integer("subtotal").notNull(), // paise
   discount: integer("discount").notNull().default(0), // paise
   total: integer("total").notNull(), // paise
@@ -98,14 +106,22 @@ export const orderStatusHistory = pgTable("order_status_history", {
  * *redemptions* — data that must be transactional consistent to
  * enforce usage limits, which Sanity isn't built for.
  */
-export const promoRedemptions = pgTable("promo_redemptions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  promoCode: text("promo_code").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  orderId: uuid("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  redeemedAt: timestamp("redeemed_at").notNull().defaultNow(),
-})
+export const promoRedemptions = pgTable(
+  "promo_redemptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promoCode: text("promo_code").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    redeemedAt: timestamp("redeemed_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // An order redeems at most one promo code — also what makes the
+    // webhook's redemption insert idempotent against retries.
+    uniqueIndex("promo_redemptions_order_id_uidx").on(table.orderId),
+  ],
+)

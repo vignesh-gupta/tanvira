@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "promo_redemptions_order_id_uidx" ON "promo_redemptions" USING btree ("order_id");

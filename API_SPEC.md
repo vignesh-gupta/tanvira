@@ -26,9 +26,14 @@ Single source of truth for all endpoint contracts. These are Next.js **Route Han
 
 ### Checkout
 
-| Method | Path                           | Description                                                                 | Auth?   | Request Body                                                   | Response                                       |
-| ------ | -------------------------------- | -------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- | --------------------------------------------------- |
-| `POST` | `/api/checkout/create-account`    | Verifies email OTP and silently creates (or finds) the Better Auth account        | none    | `{ name: string, email: string, otp: string }`                        | `201 { userId: string }` or `401` if OTP invalid     |
+Checkout's account creation is **not** a custom endpoint — it reuses Better Auth's own email-OTP plugin routes directly (mounted under `/api/auth/[...all]`, see § Auth above), called from the client via `authClient`:
+
+| Better Auth call                                   | Path (internal)                        | Description                                                        |
+| ----------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| `authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })` | `POST /api/auth/email-otp/send-verification-otp` | Sends the 6-digit OTP via Resend                                          |
+| `authClient.signIn.emailOtp({ email, otp })`           | `POST /api/auth/sign-in/email-otp`         | Verifies the OTP; silently creates the account on first success (`disableSignUp: false`) — no separate "sign up" screen is ever shown |
+
+This avoids re-implementing OTP generation/expiry/attempt-limiting logic Better Auth already provides — see [ARCHITECTURE.md](./ARCHITECTURE.md) § Security Model.
 
 ### Orders
 
