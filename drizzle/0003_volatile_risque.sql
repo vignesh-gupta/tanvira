@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "order_status_history_order_id_status_uidx" ON "order_status_history" USING btree ("order_id","status");

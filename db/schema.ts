@@ -90,15 +90,23 @@ export const orders = pgTable("orders", {
 })
 
 // Powers the order status timeline UI — one row per status change.
-export const orderStatusHistory = pgTable("order_status_history", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orderId: uuid("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  status: orderStatusEnum("status").notNull(),
-  changedAt: timestamp("changed_at").notNull().defaultNow(),
-  note: text("note"), // optional, e.g. "Shipped via BlueDart, AWB 1234"
-})
+export const orderStatusHistory = pgTable(
+  "order_status_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    status: orderStatusEnum("status").notNull(),
+    changedAt: timestamp("changed_at").notNull().defaultNow(),
+    note: text("note"), // optional, e.g. "Shipped via BlueDart, AWB 1234"
+  },
+  (table) => [
+    // An order passes through a given status once — also what makes the
+    // seed script's history insert idempotent against re-runs.
+    uniqueIndex("order_status_history_order_id_status_uidx").on(table.orderId, table.status),
+  ],
+)
 
 /**
  * Promo code *definitions* (code, discount type/value, validity window)

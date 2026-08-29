@@ -14,7 +14,9 @@
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:reset": "drizzle-kit reset",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx db/seed.ts",
+    "sanity:seed": "tsx sanity/seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -67,6 +69,7 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "shadcn": "^4.19.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "ws": "^8.21.3"
   }
