@@ -1,153 +1,164 @@
 # Implementation Plan — Tanvira
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** August 29, 2026
 **Status:** Draft
 
-Companion to `PRD.md` (what & why) and `DESIGN.md` (how it looks/flows). This document covers how it gets built: architecture, schema, folder structure, and phased delivery.
+Ordered implementation plan following Database → Backend Test Contracts → Backend → Frontend Test Contracts → Frontend. This is a **navigation document** — it says what to build and in what order, and references the authoritative detail files rather than duplicating their content.
+
+**Stack note:** Tanvira is a single Next.js application — there is no separate frontend/backend codebase. "Backend" in Phases 2–3 means Route Handlers and Server Actions living in `app/api/**` inside the same Next.js project as the pages; see [ARCHITECTURE.md](./ARCHITECTURE.md) § Module Breakdown. The stack (Next.js App Router + TypeScript, Tailwind + shadcn/ui, Sanity, Better Auth, Razorpay, Neon + Drizzle, Resend, Zod, TanStack Query, React Hook Form) is fixed — see [PRD.md](./PRD.md) § Tech Stack.
 
 ---
 
-## 1. System Architecture
+## Phase 1 — Database
 
-```
-                     ┌─────────────────────┐
-                     │      Next.js         │  (Vercel)
-                     │  App Router + TS      │
-                     └──────────┬───────────┘
-                                │
-         ┌──────────────────────┼──────────────────────┐
-         │                      │                       │
- ┌───────▼────────┐   ┌─────────▼─────────┐   ┌─────────▼─────────┐
- │  Sanity CMS     │   │  Neon Postgres     │   │  Razorpay          │
- │  (content)      │   │  + Drizzle ORM     │   │  (payments)        │
- │  products,      │   │  users (Better     │   │  Orders API +      │
- │  categories,    │   │  Auth), orders,    │   │  Checkout.js +     │
- │  banners,       │   │  payments, promo   │   │  webhooks          │
- │  promo defs     │   │  redemptions       │   └────────────────────┘
- └─────────────────┘   └────────────────────┘
-                                │
-                        ┌───────▼───────┐
-                        │  Resend        │
-                        │  (email +      │
-                        │  email OTP)    │
-                        └────────────────┘
+Two data stores, per [ARCHITECTURE.md](./ARCHITECTURE.md): Sanity (content — products, categories, banners, promo definitions) and Neon Postgres via Drizzle (transactional — users, addresses, orders, order status history, promo redemptions).
 
-  (Deferred, v2+): MSG91/Twilio SMS OTP as a second Better Auth
-  login method once revenue justifies the per-message cost.
-```
+Migration order (Postgres only — Sanity has no relational migrations):
+1. `users`
+2. `sessions`, `verification_tokens`
+3. `addresses`
+4. `orders`
+5. `order_status_history`
+6. `promo_redemptions`
 
-**Why split Sanity and Postgres:** Sanity is optimized for editorial content the owner touches by hand (products, banners, promo _definitions_). Orders, payments, and promo _redemptions_ need transactional guarantees and get written far more frequently than content changes — that belongs in Postgres via Drizzle, queried through Next.js API routes / server actions.
-
-**v1 cost baseline:** Vercel, Neon, Sanity, and Resend free tiers plus Razorpay's per-transaction-only fee mean v1 has $0 fixed monthly cost. Auth is email-only (Resend OTP) specifically to avoid the one paid component in the stack, SMS delivery, until the business has revenue to justify it.
+→ See [DB_SCHEMA.md](./DB_SCHEMA.md) for the full high-level schema, indexes, and optimisation notes.
 
 ---
 
-## 2. Data Model (high level)
+## Phase 2 — Backend Test Contracts (TDD)
 
-### Sanity schemas (content)
+> **Instruction for the builder agent**: Before writing any Route Handler or Server Action, define the test contract first — input/output and expected behaviour, no implementation. Use **Jest** for unit tests (`lib/db`, `lib/payments`, `lib/auth` helpers) and integration tests (Route Handlers under `app/api`). Create `describe`/`it` stubs only; leave bodies empty until Phase 3.
 
-- `product` — name, slug, description (Portable Text / rich text — includes material, size/length, care details, no separate variant fields), price, images[], isBundle, bundleItems[], category ref, stock
-- `category` — name, slug
-- `banner` — image, headline, CTA link, position/order
-- `promoCode` — code, discountType (flat/percent), value, validFrom/validTo, usageLimit, isActive _(definition only — redemption count tracked in Postgres)_
+- Testing framework: **Jest** (unit + integration)
+- Service/helper methods to cover:
+  - `lib/payments` — create Razorpay order; verify webhook signature (valid/invalid/tampered payload)
+  - `lib/auth` — OTP request; OTP verify (correct/incorrect/expired); silent account creation on first successful verify
+  - `lib/db` — promo code validation against validity window + usage limit; order status transition (valid/invalid transitions)
+- Route Handlers to cover (HTTP verb + path + expected success/error responses — no test code):
+  - `POST /api/checkout/create-account` — 201 on valid OTP, 401 on invalid/expired OTP
+  - `POST /api/orders` — 201 with Razorpay order created, 400 on invalid cart/address payload
+  - `GET /api/orders/:id` — 200 for existing order, 404 for unknown ID
+  - `GET /api/orders` — 200 paginated list (session), 401 without session
+  - `POST /api/promo/validate` — 200 valid/invalid shape per code state
+  - `POST /api/webhooks/razorpay` — 200 on verified `payment.captured`/`payment.failed`, 400 on signature mismatch
+- Minimum coverage target: ≥80% on all new/changed code.
 
-### Postgres schema (transactional, via Drizzle)
-
-- `users` — id, name, email, createdAt _(Better Auth manages this table; email is the sole auth identifier for v1)_
-- `sessions`, `verificationTokens` _(Better Auth managed)_
-- `addresses` — id, userId, line1, line2, city, state, pincode, phone _(phone lives here as a delivery-contact field, not on `users`)_
-- `orders` — id, userId, status (enum), items (jsonb), promoCode, subtotal, discount, total, addressId, razorpayOrderId, razorpayPaymentId, createdAt
-- `orderStatusHistory` — id, orderId, status, changedAt _(powers the order timeline UI)_
-- `promoRedemptions` — id, promoCode, userId, orderId, redeemedAt
-
----
-
-## 3. Folder Structure (proposed)
-
-```
-tanvira/
-├── app/
-│   ├── (storefront)/
-│   │   ├── page.tsx                  # Landing
-│   │   ├── products/page.tsx         # PLP
-│   │   ├── products/[slug]/page.tsx  # PDP
-│   │   ├── cart/page.tsx
-│   │   ├── checkout/page.tsx
-│   │   ├── orders/[id]/page.tsx      # Order status
-│   │   └── account/orders/page.tsx   # Order history
-│   ├── api/
-│   │   ├── checkout/create-account/route.ts
-│   │   ├── orders/route.ts
-│   │   ├── orders/[id]/route.ts
-│   │   ├── webhooks/razorpay/route.ts
-│   │   └── auth/[...all]/route.ts    # Better Auth handler
-│   └── studio/[[...tool]]/page.tsx   # Embedded Sanity Studio (optional; can also be standalone)
-├── components/
-│   ├── ui/                           # shadcn components
-│   └── storefront/                   # ProductCard, CartDrawer, OrderTimeline, etc.
-├── lib/
-│   ├── sanity/                       # client, queries (GROQ), image builder
-│   ├── db/                           # drizzle schema + client
-│   ├── auth/                         # better-auth config, OTP adapters
-│   ├── payments/                     # razorpay client + webhook verification
-│   └── email/                        # resend client + React Email templates
-├── drizzle/                          # migrations
-└── sanity.config.ts
-```
+→ See [API_SPEC.md](./API_SPEC.md) for the endpoint contracts your tests must validate.
 
 ---
 
-## 4. Build Phases
+## Phase 3 — Backend
 
-### Phase 1 — Foundation
+- **Route Handlers** (`app/api/**/route.ts`): checkout account creation, orders CRUD, promo validation, Razorpay webhook receiver, Better Auth catch-all handler.
+- **Server Actions**: cart mutations (add/update/remove) where a Route Handler isn't needed — cart persists server-side keyed to a session cookie before auth, merged into the account's cart at account creation (see [PRD.md](./PRD.md) § Key Risks).
+- **Structure**: no feature-folder split by domain the way a separate Express service would have — Route Handlers live under `app/api/<resource>/route.ts`, shared logic lives in `lib/<concern>/` (`sanity`, `db`, `auth`, `payments`, `email`). See [ARCHITECTURE.md](./ARCHITECTURE.md) § Module Breakdown for the full tree.
+- **Auth**: Better Auth email-OTP plugin — see [ARCHITECTURE.md](./ARCHITECTURE.md) § Security Model for the session/authorization model (Customer vs. Owner, the latter being Sanity's own auth, not Better Auth).
+- **Business logic modules**:
+  - `lib/payments` — Razorpay order creation, Checkout.js trigger payload, webhook signature verification
+  - `lib/auth` — Better Auth config + email-OTP plugin wiring
+  - `lib/db` — Drizzle schema/client, order status transitions, promo redemption tracking
+  - `lib/email` — Resend client + React Email templates (OTP, order confirmation, shipping update)
+  - `lib/sanity` — client, GROQ queries, image URL builder
+- **Third-party integrations**: Razorpay (Orders API + Checkout.js + webhooks), Resend (email OTP + transactional email), Sanity (content), Neon (transactional data).
 
-- Next.js + TypeScript + Tailwind + shadcn scaffold, design tokens from `DESIGN.md` wired into `tailwind.config`
-- Sanity project setup + schemas (product, category, banner, promoCode)
-- Neon Postgres + Drizzle setup, initial migration (users/addresses/orders tables)
-- Better Auth installed and configured with the email OTP plugin (Resend) — no SMS provider needed for v1, keeping the stack at $0 fixed cost
-- Deploy skeleton to Vercel with all env vars wired
-
-### Phase 2 — Core Commerce
-
-- Landing page pulling banners/collections from Sanity
-- PLP with filters, PDP rendering rich-text descriptions and bundle support
-- Cart (client state + persisted, e.g. via cookie/localStorage synced to a server cart on login)
-- Checkout flow: name + email → email OTP verification → Better Auth account auto-creation → address capture (phone collected here as a contact field)
-- Razorpay integration: order creation, Checkout.js trigger, webhook handler for `payment.captured` / `payment.failed`
-
-### Phase 3 — Orders & CMS Depth
-
-- Order confirmation + order status pages with timeline component
-- Order history page gated behind OTP login
-- Promo code logic: validation, discount calculation, redemption tracking against `promoRedemptions`
-- CMS: owner-facing order view (read-only sync from Postgres into a Studio custom view, or a simple `/studio` linked internal dashboard — decide based on Sanity's custom tool support)
-
-### Phase 4 — Polish & Launch
-
-- Responsive QA across mobile/tablet/desktop per `DESIGN.md` breakpoints
-- Accessibility pass: contrast check, keyboard nav, alt text enforcement in Sanity schema
-- Loading/empty/error states for every screen (per `DESIGN.md` §4)
-- Transactional email templates finalized (order confirmation, shipping update)
-- Soft launch → monitor Razorpay webhook reliability, OTP delivery rates, and CMS usability with the owner
+→ See [API_SPEC.md](./API_SPEC.md) for full endpoint contracts, request/response schemas, and error codes.
 
 ---
 
-## 5. Key Technical Risks & Mitigations
+## Phase 4 — Frontend Test Contracts (TDD)
 
-| Risk                                                                   | Mitigation                                                                                                                                                            |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Email OTP landing in spam / delivery delays                            | Use Resend's verified sending domain setup from day one; monitor deliverability before launch; add SMS OTP (MSG91) as a second method once revenue justifies the cost |
-| Razorpay onboarding delay without GSTIN                                | Apply early as sole proprietor with PAN; use manual receipts (not tax invoices) until GST registration                                                                |
-| Owner accidentally breaking storefront layout via CMS                  | Constrain Sanity schema fields (required alt text, fixed banner aspect ratios, no free-form HTML)                                                                     |
-| Cart/session continuity when checkout auto-creates an account mid-flow | Persist cart server-side keyed to session cookie before auth, merge into user's cart on account creation                                                              |
-| Manual order status updates being forgotten by a solo owner            | Add a simple CMS/dashboard reminder view sorted by "oldest un-updated order"                                                                                          |
+> **Instruction for the builder agent**: Before writing any component or page, define what should be tested — rendering, interactions, data states — no implementation. Use **Jest + React Testing Library** for unit/component tests and **Playwright** for E2E flows. Create `describe`/`it`/`test` stubs only; leave bodies empty until Phase 5.
+
+- Unit/component testing framework: **Jest + React Testing Library**
+- E2E testing framework: **Playwright**
+- Components to cover (name — what to assert):
+  - `ProductCard` — quick Add to Cart fires without navigation; bundle/sale badges render conditionally
+  - `CartLineItem` — quantity stepper updates total; remove fires the correct mutation
+  - `PromoCodeInput` — applied/error states render correctly per validation response
+  - `CheckoutSteps` — current-step indicator matches the active checkout step
+  - `OrderStatusTimeline` / `StatusBadge` — renders correct sequence/color per order status
+  - `RichTextRenderer` — Portable Text renders with correct heading/list semantics
+- E2E flows to cover (screen-to-screen path):
+  - Browse → quick Add to Cart from PLP → Cart → Checkout → Payment (test mode) → Order Confirmation
+  - Browse → PDP → Add to Cart → Cart → Checkout → Payment failure → retry → success
+  - Returning customer → email OTP login → Order History → Order Status detail
+  - Owner (out of scope for Playwright — covered by manual CMS QA, not automated E2E)
+- Minimum coverage target: ≥80% unit/component; all critical E2E paths above covered.
+
+→ See [DESIGN.md](./DESIGN.md) for the component catalogue and screen inventory your tests must cover.
 
 ---
 
-## 6. Definition of Done (v1)
+## Phase 5 — Frontend
 
-- [ ] All screens in `DESIGN.md` implemented with default/loading/empty/error states
+### Step 5.1 — Screen registry (from the built Figma file)
+
+Figma file: `JesePETAAs901KcENKoKrT`. Node ID format below is `<fileKey>/<nodeId>`.
+
+| Screen                | Route                       | Figma Node ID (Desktop)              | Figma Node ID (Mobile)                | Key Components                                  |
+| ----------------------- | ----------------------------- | --------------------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| Landing                 | `/`                            | `JesePETAAs901KcENKoKrT/51:2`             | `JesePETAAs901KcENKoKrT/69:60`             | Header Nav, Hero, Product Card, Footer                 |
+| Login (email)           | `/login`                       | `JesePETAAs901KcENKoKrT/47:2`             | `JesePETAAs901KcENKoKrT/47:55`             | Input, Button                                          |
+| OTP verification        | `/login` (step 2)              | `JesePETAAs901KcENKoKrT/50:80`            | `JesePETAAs901KcENKoKrT/50:148`            | Input (OTP segmented), Button                          |
+| Product Listing (PLP)   | `/products`                    | `JesePETAAs901KcENKoKrT/80:322`           | `JesePETAAs901KcENKoKrT/80:475`            | Filter Rail, Product Card (quick Add to Cart)          |
+| Product Detail (PDP)    | `/products/[slug]`             | `JesePETAAs901KcENKoKrT/80:601`           | `JesePETAAs901KcENKoKrT/80:710`            | Image Gallery, Rich Text Renderer, Product Card        |
+| Cart                    | `/cart`                        | `JesePETAAs901KcENKoKrT/97:2`             | `JesePETAAs901KcENKoKrT/103:82`            | Cart Line Item, Promo Code Input                       |
+| Checkout — Step 1       | `/checkout`                    | `JesePETAAs901KcENKoKrT/108:152`          | `JesePETAAs901KcENKoKrT/108:250`           | Input (OTP), Checkout Steps                            |
+| Checkout — Step 2       | `/checkout`                    | `JesePETAAs901KcENKoKrT/109:296`          | `JesePETAAs901KcENKoKrT/109:394`           | Input, Checkout Steps                                  |
+| Checkout — Step 3       | `/checkout`                    | `JesePETAAs901KcENKoKrT/112:448`          | `JesePETAAs901KcENKoKrT/112:532`           | Checkout Steps, Promo Code Input                        |
+| Order Confirmation      | `/orders/[id]/confirmation`    | `JesePETAAs901KcENKoKrT/113:552`          | `JesePETAAs901KcENKoKrT/113:619`           | Status Badge                                            |
+| Order Status            | `/orders/[id]`                 | `JesePETAAs901KcENKoKrT/117:624`          | `JesePETAAs901KcENKoKrT/117:719`           | Order Status Timeline, Status Badge, Breadcrumb        |
+| Order History           | `/account/orders`              | `JesePETAAs901KcENKoKrT/121:2`            | `JesePETAAs901KcENKoKrT/121:94`            | Status Badge, Breadcrumb                                |
+| Privacy Policy          | `/legal/privacy`               | `JesePETAAs901KcENKoKrT/122:2`            | `JesePETAAs901KcENKoKrT/122:70`            | Rich Text Renderer                                      |
+| Terms of Service        | `/legal/terms`                 | `JesePETAAs901KcENKoKrT/122:128`          | —                                          | Rich Text Renderer                                      |
+| Shipping & Returns      | `/legal/shipping-returns`      | `JesePETAAs901KcENKoKrT/122:196`          | —                                          | Rich Text Renderer                                      |
+| 404 Not Found           | `/not-found`                   | `JesePETAAs901KcENKoKrT/123:2`            | `JesePETAAs901KcENKoKrT/123:51`            | Button (home link)                                      |
+| 500 Server Error        | `/error`                       | `JesePETAAs901KcENKoKrT/123:90`           | `JesePETAAs901KcENKoKrT/123:141`           | Button (retry/home link)                                |
+| Offline                 | (client-side, no route)        | `JesePETAAs901KcENKoKrT/123:182`          | —                                          | Button (retry)                                          |
+
+### Step 5.2 — Theme
+
+- Map [DESIGN.md](./DESIGN.md) § Design Tokens (color, typography, spacing, radius) into `tailwind.config.ts`.
+- Create `src/styles/tokens.css` exporting CSS custom properties for the full token set.
+- Do not build components until the theme is complete and verified against the Theming & Branding Figma page.
+
+### Step 5.3 — Components (shared, then feature)
+
+- `components/ui/` — shadcn primitives (Button, Input, Dialog, …).
+- `components/storefront/` — build in this order, atoms → molecules → organisms, matching [DESIGN.md](./DESIGN.md) § Component Catalogue: Button, Input, Status Badge → Product Card, Cart Line Item, Promo Code Input, Checkout Steps → Header Nav, Footer, Image Gallery, Order Status Timeline.
+- Note each component's Figma source as a code comment: `// Figma: https://figma.com/design/JesePETAAs901KcENKoKrT?node-id=<nodeId>`.
+
+### Step 5.4 — Pages
+
+Implement in navigation-flow order (see [DESIGN.md](./DESIGN.md) § User Flows Mermaid diagram): Landing → PLP → PDP → Cart → Checkout (3 steps) → Order Confirmation → Order Status → Login/OTP → Order History → Legal pages → System states.
+
+| Page | Route | Figma Node Link | Key Components Used | TanStack Query Hooks |
+| ---- | ----- | ---------------- | ---------------------- | ----------------------- |
+| _(fill in as each page is implemented, using the Step 5.1 registry above)_ | | | | |
+
+- Wire TanStack Query for all client-side data fetching/mutation (cart sync, order status polling).
+- Implement loading/error/empty states per [DESIGN.md](./DESIGN.md) § Screen Descriptions for every async operation.
+- Add error boundaries at the page level (`error.tsx` per route segment).
+
+→ See [DESIGN.md](./DESIGN.md) for component catalogue, variants, and design tokens.
+
+---
+
+## Phase 6 — Cross-cutting
+
+- CI/CD: run Jest + Playwright on every PR; block merge on failing tests or <80% coverage on changed files.
+- `.env.example` covering: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_TOKEN`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `DATABASE_URL` (Neon).
+- Observability: structured logging on Route Handlers (esp. the Razorpay webhook), error tracking for unhandled exceptions surfaced to `error.tsx`.
+- Launch checklist: all [DESIGN.md](./DESIGN.md) screens implemented with default/loading/empty/error states; Razorpay test payment completes end-to-end; OTP login/checkout verified; owner can add a product/banner/promo code unaided; Lighthouse accessibility ≥90 on Landing, PLP, PDP, Checkout.
+
+→ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system diagram, deployment topology, and security model.
+
+---
+
+## Definition of Done (v1)
+
+- [ ] All screens in [DESIGN.md](./DESIGN.md) implemented with default/loading/empty/error states
 - [ ] Checkout completes end-to-end with a real Razorpay test payment (UPI + card)
 - [ ] Account is created silently at checkout with no visible "sign up" step
 - [ ] Returning customer can OTP-login and see order history

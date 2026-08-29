@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "figma": {
+      "url": "https://mcp.figma.com/mcp",
+      "type": "http"
+    },
+    "better-auth": {
+      "url": "https://mcp.better-auth.com/mcp",
+      "type": "http"
+    },
+    "Sanity": {
+      "type": "http",
+      "url": "https://mcp.sanity.io"
+    }
+  }
+}

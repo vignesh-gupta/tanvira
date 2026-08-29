@@ -6,6 +6,12 @@
 
 ---
 
+## Executive Summary
+
+Tanvira needs a direct-to-consumer storefront so it can stop selling through Instagram DMs and WhatsApp. This PRD scopes a Next.js storefront — landing, browsable catalog with quick Add to Cart from the grid (mass-market imitation-jewellery pricing is low-consideration), cart, a single-flow checkout that silently creates an account via email OTP, Razorpay payments, and order tracking — plus a Sanity Studio CMS so the owner can run products, banners, and promo codes herself. v1 deliberately runs at $0 fixed cost (Vercel/Neon/Sanity/Resend free tiers + Razorpay's per-transaction fee) and defers anything that isn't needed to take the first sale (wishlists, reviews, loyalty, multi-currency, a native app). See [DESIGN.md](./DESIGN.md) for screens/flows and [ARCHITECTURE.md](./ARCHITECTURE.md) for the technical shape.
+
+---
+
 ## 1. Overview
 
 ### Problem Statement
@@ -14,7 +20,7 @@ Tanvira is a small independent jewellery and accessories brand currently without
 
 ### Product Vision
 
-A lean, elegant direct-to-consumer storefront for Tanvira where customers can browse gift and everyday-wear jewellery, check out in one frictionless flow, and track their order — while the owner runs the entire catalog, promotions, and homepage content herself through a CMS.
+A lean, elegant direct-to-consumer storefront for Tanvira — a mass-market imitation/fashion jewellery brand (gold-plated, artificial stones; not fine/precious jewellery) — where customers can browse gift and everyday-wear pieces, add to cart straight from the listing grid, check out in one frictionless flow, and track their order — while the owner runs the entire catalog, promotions, and homepage content herself through a CMS.
 
 ### Goals
 
@@ -35,7 +41,7 @@ A lean, elegant direct-to-consumer storefront for Tanvira where customers can br
 | Age range      | 18–40                                                                                    |
 | Tech-savviness | Medium–high; mobile-first, comfortable paying via UPI                                    |
 | Key pain point | Doesn't want to create an account just to buy one item; wants to know where her order is |
-| Motivation     | Affordable, well-curated jewellery for daily wear or gifting occasions                   |
+| Motivation     | Affordable, well-curated imitation/fashion jewellery for daily wear or gifting occasions — often buys more than one piece per visit |
 
 ### Secondary Persona — Store Owner (Tanvira)
 
@@ -65,7 +71,7 @@ A lean, elegant direct-to-consumer storefront for Tanvira where customers can br
 ### In Scope (v1)
 
 - Landing page: hero, featured collections, banners (owner-editable)
-- Product listing page: category/price filtering, product cards
+- Product listing page: category/price filtering, product cards with quick **Add to Cart** directly from the grid — mass-market imitation-jewellery price points are low-consideration, so customers shouldn't have to open a product's detail page just to buy it; tapping the image/name still opens the PDP for full details
 - Product detail page: images, rich-text description (material, size/length, care details all authored as part of the description — no separate variant selector UI), bundle products
 - Cart: add/update/remove, persists across session
 - Checkout: single flow collecting name + email → auto-creates account via email OTP (no separate sign-up) → shipping address (phone collected here as a plain delivery-contact field, not used for auth) → payment
@@ -88,7 +94,27 @@ A lean, elegant direct-to-consumer storefront for Tanvira where customers can br
 
 ---
 
-## 5. Timeline & Milestones
+## 5. Feature List
+
+| Feature                          | Priority | Description                                                                                   | Acceptance Criteria                                                                                                    |
+| --------------------------------- | -------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Landing page (CMS-driven)         | P0       | Hero, featured collections, bestsellers, brand story — all owner-editable                       | Owner can change hero image/headline/CTA and see it live without a deploy; page renders a static fallback if CMS fetch fails |
+| Product listing + quick Add to Cart | P0     | Category/price filters, sort, product grid with an Add to Cart button on every card              | Adding from the grid updates cart count and shows inline confirmation without leaving the page; tapping image/name opens the PDP |
+| Product detail page               | P0       | Gallery, rich-text description (material/size/care as one CMS block), bundle contents, Add to Cart | Out-of-stock disables the CTA; bundle products list their contents; description renders CMS rich text with correct semantics |
+| Cart                              | P0       | Line items, quantity stepper, remove, promo code, subtotal/discount/total                        | Cart persists across a session reload; invalid promo codes show a clear inline error                                        |
+| Checkout (single flow)            | P0       | Name + email → email OTP → auto-created account → address → Razorpay payment                     | No separate "sign up" screen is ever shown; a failed OTP or failed payment can be retried without losing entered data       |
+| Payments (Razorpay)               | P0       | UPI, cards, netbanking via Orders API + Checkout.js, webhook-confirmed                            | Order only moves to "Confirmed" after the `payment.captured` webhook is verified, not on client-side redirect alone         |
+| Order confirmation + status pages | P0       | Order summary right after payment; status timeline (Placed→Confirmed→Shipped→Delivered/Cancelled/Refunded) | Status page is reachable via a shareable order link and reflects the latest owner-updated status                      |
+| Passwordless login + order history | P0      | Returning customer logs in with email OTP to view past orders                                    | No password is ever set or requested; login re-uses the same Better Auth OTP mechanism as checkout                          |
+| Discount / promo codes            | P1       | Applied at cart or re-applied at checkout                                                        | A code past its validity window or usage limit is rejected with a specific reason, not a generic error                      |
+| Bundles                           | P1       | Modeled as a product type, not a separate system                                                 | A bundle product shows its component items on the PDP and in cart/order line items                                          |
+| CMS (Sanity Studio)               | P0       | Owner self-serve for products, categories, bundles, banners, promo codes, read-only order view    | Owner can add a product end-to-end (fields + images) in under 5 minutes without developer help                              |
+| Legal & policy pages              | P1       | Privacy Policy, Terms of Service, Shipping & Returns                                              | Linked from the footer on every page; content editable by the owner or hardcoded copy at minimum for launch                 |
+| System states (404/500/offline)   | P1       | Branded fallback pages instead of default framework errors                                       | Each state offers a way back to the storefront (home link / retry)                                                          |
+
+---
+
+## 6. Timeline & Milestones
 
 No fixed launch date was specified — the plan below is phased so the store can go live in stages rather than as one large release. See `PLAN.md` for the detailed technical build plan.
 
@@ -101,7 +127,9 @@ No fixed launch date was specified — the plan below is phased so the store can
 
 ---
 
-## 6. Assumptions & Dependencies
+## 7. Dependencies & Risks
+
+### Assumptions & Dependencies
 
 - Owner is not currently GST-registered; Razorpay onboarding will use PAN + bank account as a sole proprietor (permitted below the GST threshold), and checkout will issue simple receipts, not tax invoices, until GST registration happens
 - Product photography is supplied by the owner
@@ -111,9 +139,21 @@ No fixed launch date was specified — the plan below is phased so the store can
 - Phone number is collected at checkout as a plain delivery-contact field, not used for authentication, so no SMS OTP provider is needed for v1
 - SMS OTP (e.g. via MSG91) is deferred to a later phase once revenue justifies the recurring per-message cost; Better Auth's architecture supports adding it later without restructuring auth
 
+### Key Risks
+
+| Risk                                                             | Mitigation                                                                                            |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Email OTP lands in spam / delivery delays                         | Verified Resend sending domain from day one; monitor deliverability; add SMS OTP once revenue justifies it |
+| Razorpay onboarding delay without GSTIN                           | Apply as sole proprietor with PAN; issue receipts, not tax invoices, until GST registration                |
+| Owner breaks storefront layout via CMS                            | Constrain Sanity schema (required alt text, fixed banner aspect ratios, no free-form HTML)                 |
+| Cart/session continuity when checkout auto-creates an account mid-flow | Persist cart server-side keyed to session cookie pre-auth, merge into user's cart on account creation |
+| Manual order status updates forgotten by a solo owner              | CMS/dashboard view sorted by "oldest un-updated order"                                                     |
+
+→ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the security model and deployment topology these risks assume.
+
 ---
 
-## 7. Open Questions
+## 8. Open Questions
 
 - When to add phone/SMS OTP as a second login method (post-revenue) and which provider (MSG91 recommended for INR pricing; Twilio as an international fallback)
 - Return/refund policy specifics, which determine the exact rules for the "Cancelled" and "Refunded" order states
@@ -122,7 +162,7 @@ No fixed launch date was specified — the plan below is phased so the store can
 
 ---
 
-## 8. Tech Stack
+## 9. Tech Stack
 
 | Layer                | Choice                                          | Notes                                                                                                                                                                                                                                                 |
 | -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

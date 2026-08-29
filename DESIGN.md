@@ -8,7 +8,8 @@
 
 ## 1. Design Principles
 - **Quiet luxury** — generous whitespace, restrained ornamentation, let product photography carry the page
-- **Frictionless commerce** — every extra tap between "want it" and "bought it" is a bug, especially at checkout
+- **Fashion jewellery, not fine jewellery** — Tanvira sells mass-market imitation jewellery (gold-plated brass, artificial stones); copy and imagery must never imply genuine precious metals/gemstones, and accessible pricing supports frequent, low-consideration purchases
+- **Frictionless commerce** — every extra tap between "want it" and "bought it" is a bug, especially at checkout — including on the listing page itself: quick Add to Cart from every product card, no forced detour through the PDP
 - **Mobile-first** — most gifting/everyday-wear shoppers browse and buy from a phone
 - **Owner-editable, not owner-breakable** — CMS content types are structured so the owner can't accidentally break page layout
 - **Accessible by default** — jewellery photography needs strong contrast for text overlays; never sacrifice legibility for aesthetics
@@ -47,17 +48,52 @@ Derived from the Tanvira logo (burgundy background, cream wordmark, gold diamond
 
 ---
 
-## 3. User Flows
+## 3. Screen Inventory
+
+| Screen               | Route                     | Description                                                        | Key Components                                                    |
+| --------------------- | -------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Landing                | `/`                         | Hero, featured collections, bestsellers, brand story                | Header Nav, Hero banner, Product Card, Footer                        |
+| Product Listing (PLP)  | `/products`                 | Filterable/sortable catalog grid                                     | Filter Rail, Product Card (with quick Add to Cart), Skeleton         |
+| Product Detail (PDP)   | `/products/[slug]`          | Gallery, rich-text description, bundle contents, Add to Cart         | Image Gallery, Rich Text Renderer, Product Card ("you may also like") |
+| Cart                   | `/cart`                     | Line items, promo code, subtotal/discount/total                      | Cart Line Item, Promo Code Input, Button                              |
+| Checkout — Step 1      | `/checkout`                 | Name + email, OTP verification                                       | Input (OTP segmented), Checkout Steps, Button                         |
+| Checkout — Step 2      | `/checkout`                 | Shipping address (phone as contact field)                            | Input, Checkout Steps                                                 |
+| Checkout — Step 3      | `/checkout`                 | Order summary, Razorpay payment trigger                              | Checkout Steps, Promo Code Input, Button                              |
+| Order Confirmation     | `/orders/[id]/confirmation` | Order ID, summary, delivery estimate                                  | Status Badge, Button                                                  |
+| Order Status           | `/orders/[id]`              | Status timeline, items, address, payment summary                     | Order Status Timeline, Status Badge, Breadcrumb                       |
+| Order History          | `/account/orders`           | Logged-in customer's past orders (OTP-gated)                          | Status Badge, Breadcrumb                                              |
+| Login / OTP            | `/login`                    | Email entry → OTP verification for returning customers                | Input (OTP segmented), Button                                         |
+| Privacy Policy         | `/legal/privacy`            | Static/CMS legal copy                                                 | Rich Text Renderer                                                    |
+| Terms of Service       | `/legal/terms`              | Static/CMS legal copy                                                 | Rich Text Renderer                                                    |
+| Shipping & Returns     | `/legal/shipping-returns`   | Static/CMS policy copy                                                | Rich Text Renderer                                                    |
+| 404 Not Found          | `/not-found`                | Branded fallback for unknown routes                                    | Button (home link)                                                    |
+| 500 Server Error       | `/error`                    | Branded fallback for unhandled errors                                  | Button (retry/home link)                                              |
+| Offline                | (client-side, no route)     | Shown when network is unavailable                                      | Button (retry)                                                        |
+
+---
+
+## 4. User Flows
 
 ### Flow 1: Browse → Purchase (primary flow)
+
+```mermaid
+flowchart LR
+    Landing --> PLP[Product Listing]
+    PLP -->|tap image/name| PDP[Product Detail]
+    PDP -->|Add to Cart| Cart
+    PLP -->|quick Add to Cart| Cart
+    Cart --> Checkout1[Checkout: Details + OTP]
+    Checkout1 --> Checkout2[Checkout: Address]
+    Checkout2 --> Checkout3[Checkout: Payment]
+    Checkout3 -->|success| Confirmation[Order Confirmation]
+    Confirmation --> Status[Order Status]
+    Checkout3 -->|payment fails| Checkout3
+    Status -.->|returning visit| Login[Email OTP Login]
+    Login --> History[Order History]
 ```
-Landing → Product Listing → Product Detail → Add to Cart → Cart
-   → Checkout (name + email → email OTP → auto-create account) → Address (incl. phone as contact)
-   → Payment (Razorpay) → Order Confirmation → Order Status page
-     ↓ (payment fails)                    ↓ (OTP requested for login later)
-   Retry payment on Checkout          Returning-customer email OTP login → Order History
-```
+
 **Notes:**
+- Add to Cart works two ways: a quick-add button directly on every Product Listing card (default configuration, qty 1, no navigation away from the grid), or from the PDP after reviewing full details — both land in the same Cart.
 - No account/sign-up screen exists as a separate step. The moment the customer submits name + email at checkout and verifies the OTP, Better Auth silently creates the account in the background; the customer only ever sees "checkout," never "sign up."
 - Auth is email-only for v1 (keeps the stack free — no SMS provider needed). The OTP is sent and verified via Resend before payment, since it's the account identifier.
 - Phone number is still collected, but on the Address step, purely as a delivery-contact field — it does not gate checkout and isn't used for login.
@@ -82,7 +118,7 @@ Sanity Studio login → Products → Create/Edit product
 
 ---
 
-## 4. Screen Descriptions / Wireframe Notes
+## 5. Screen Descriptions / Wireframe Notes
 
 ### Screen: Landing
 **Purpose:** First impression, brand tone-setting, route into collections
@@ -99,10 +135,11 @@ Sanity Studio login → Products → Create/Edit product
 **Purpose:** Browse and filter the catalog
 **Key elements:**
 - Category filter, price range filter
-- Product grid (image, name, price)
+- Product grid (image, name, price, **Add to Cart button on every card** for quick-add — mass-market imitation-jewellery pricing means most purchases don't need a PDP detour; tapping the image/name still opens the PDP for full details)
 - Sort (price, newest)
 
 **States:** Default | Loading (skeleton grid) | Empty (no matches — "no items in this filter") | Error
+**Notes:** Quick Add to Cart adds the default configuration (qty 1) and confirms inline (e.g. toast + header cart-count bump) without navigating away from the grid.
 
 ### Screen: Product Detail (PDP)
 **Purpose:** Convert interest into an add-to-cart
@@ -162,9 +199,31 @@ Sanity Studio login → Products → Create/Edit product
 
 **States:** Default | Empty (no past orders) | Loading | Error
 
+### Screen: Login / OTP
+**Purpose:** Passwordless re-entry point for returning customers
+**Key elements:**
+- Email input, "Send OTP" CTA
+- 6-digit segmented OTP input, resend (rate-limited)
+
+**States:** Default | Loading (sending/verifying) | Error (invalid/expired OTP, rate-limited)
+
+### Screen: Legal & Policy Pages (Privacy, Terms, Shipping & Returns)
+**Purpose:** Static compliance/policy copy, linked from the footer
+**Key elements:**
+- Title, last-updated date, rich-text body
+
+**States:** Default only — no CMS-dependent loading/error states for launch (copy can be hardcoded or CMS-authored later)
+
+### Screen: System States (404, 500, Offline)
+**Purpose:** Branded fallback instead of a default framework error screen
+**Key elements:**
+- Short message matching brand voice, illustration/icon, primary action (home link for 404/500, retry for Offline)
+
+**States:** Each is itself a single state — no further loading/empty/error variants apply
+
 ---
 
-## 5. Responsive & Mobile Considerations
+## 6. Responsive & Mobile Considerations
 
 | Breakpoint | Width | Layout notes |
 |------------|-------|--------------|
@@ -179,7 +238,18 @@ Sanity Studio login → Products → Create/Edit product
 
 ---
 
-## 6. Accessibility Requirements
+## 7. Interaction & Animation Notes
+
+- **Hover states:** Buttons and Product Cards lift with a subtle shadow (effect style `card`) on hover (desktop only — no hover-dependent functionality, since mobile has no hover).
+- **Quick Add to Cart feedback:** clicking the PLP card's Add to Cart pill triggers an inline toast ("Added to cart") plus a brief scale/bounce on the header cart-count badge — no page navigation or modal interrupts the browsing flow.
+- **Transitions:** page-to-page navigation uses Next.js's default route transitions (no custom page-transition animation for v1); Cart quantity changes animate the subtotal/total number rather than jump-cutting.
+- **Empty states:** Cart-empty and Order-History-empty both pair a short message with a single "Browse products" CTA — never a dead end.
+- **Error states:** inline, next to the field/section that failed (promo code error under the input, OTP error under the OTP field) rather than a global banner, so the customer doesn't lose context on a long checkout form.
+- **Loading states:** skeleton loaders (not spinners) for PLP grid, PDP, and cart, matching the final layout's shape to avoid content jump when data arrives.
+
+---
+
+## 8. Accessibility Requirements
 - **WCAG level target:** AA
 - Color contrast: burgundy-on-beige and cream-on-burgundy combinations to be verified at 4.5:1 minimum for body text, 3:1 for large text (gold accent is decorative only — never used for text needing contrast guarantees)
 - All interactive elements keyboard-navigable, including cart quantity steppers, and rich-text description content must use proper heading/list semantics (not just visual styling) for screen readers
@@ -190,62 +260,33 @@ Sanity Studio login → Products → Create/Edit product
 
 ---
 
-## 7. API / Data Contracts
+## 9. API / Data Contracts
 
-### Endpoint: `GET /api/products`
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `id` | string | yes | Sanity document ID |
-| `name` | string | yes | |
-| `slug` | string | yes | |
-| `price` | number | yes | In paise (INR) |
-| `images` | string[] | yes | Sanity image URLs |
-| `description` | portable text (rich text) | yes | Authored in CMS; includes material, size/length, care details — no separate variant fields |
-| `isBundle` | boolean | yes | |
-| `stock` | number | yes | |
-
-### Endpoint: `POST /api/checkout/create-account`
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `name` | string | yes | |
-| `email` | string | no* | *one of email/phone required |
-| `phone` | string | no* | |
-| `otp` | string | conditional | required if phone provided |
-
-### Endpoint: `POST /api/orders`
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `userId` | string | yes | From Better Auth session |
-| `items` | object[] | yes | productId, qty, price |
-| `promoCode` | string | no | |
-| `shippingAddress` | object | yes | |
-| `razorpayOrderId` | string | yes | Created before payment trigger |
-
-### Endpoint: `GET /api/orders/:id`
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `id` | string | yes | |
-| `status` | enum | yes | `placed`, `confirmed`, `shipped`, `delivered`, `cancelled`, `refunded` |
-| `items` | object[] | yes | |
-| `total` | number | yes | |
-| `timeline` | object[] | yes | status + timestamp pairs |
-
-### Webhook: `POST /api/webhooks/razorpay`
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `event` | string | yes | e.g. `payment.captured`, `payment.failed` |
-| `payload` | object | yes | Razorpay payment/order payload |
+→ See [API_SPEC.md](./API_SPEC.md) for the full, authoritative endpoint contracts (request/response fields, auth, error codes, pagination). This section previously duplicated that detail; kept out here to avoid drift between the two files.
 
 ---
 
-## 8. Component Inventory (reference)
-- [ ] Button (primary/burgundy, secondary/outline, ghost, destructive)
-- [ ] Input (text, phone [contact-only, non-auth], OTP — 6-digit segmented input for email verification)
-- [ ] Product Card (image, name, price, badge for "bundle"/"sale")
-- [ ] Cart Drawer / Line Item row with quantity stepper
-- [ ] Rich Text Renderer (Sanity Portable Text → styled description block on PDP)
-- [ ] Order Status Timeline (stepper component)
-- [ ] Status Badge/Pill (per order state, color-coded)
+## 10. Component Catalogue
+
+| Component              | Purpose                                                        | Variants / States                                                        |
+| ------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Button                    | Primary action trigger across the app                               | primary (burgundy), secondary (outline), ghost, destructive; default/hover/disabled |
+| Input                     | Text entry                                                          | text, phone (contact-only, non-auth), OTP (6-digit segmented); default/focus/error/disabled |
+| Header Nav                | Global top navigation                                               | burgundy background, logo, cart icon with count, login/account link          |
+| Footer                    | Global footer                                                       | links, contact/WhatsApp, socials, policy links                               |
+| Status Badge / Pill       | Order-state indicator, color-coded                                  | Placed, Confirmed, Shipped, Delivered, Cancelled, Refunded                    |
+| Order Status Timeline     | Sequential order-state stepper                                      | horizontal (desktop) / vertical (mobile)                                     |
+| Checkout Steps            | Progress indicator across the 3-step checkout                       | Current Step = 1, 2, 3 (circle + connector, matches Order Status Timeline)   |
+| Product Card              | Catalog tile — image, name, price, badge, **quick Add to Cart pill** | default, bundle badge, sale badge                                            |
+| Cart Line Item            | A single cart row with quantity stepper and remove                  | default, low-stock                                                           |
+| Promo Code Input          | Code entry with apply/remove                                        | default, applied, error (invalid/expired code)                               |
+| Rich Text Renderer        | Sanity Portable Text → styled content block                         | used on PDP description, legal pages                                         |
+| Modal / Dialog            | Overlay for confirmations and secondary flows                       | default                                                                       |
+| Toast / Notification      | Transient feedback (order placed, promo applied, errors)            | success, error, info                                                         |
+| Breadcrumb                | Secondary navigation trail                                          | 2-level, 3-level                                                              |
+| Image Gallery / Carousel  | Product imagery                                                     | swipeable (mobile), thumbnail strip (desktop)                                |
+| Skeleton                  | Loading placeholder                                                 | PLP grid, PDP, cart                                                          |
+| Filter Rail               | PLP category/price filtering                                        | default, active filter chips                                                 |
 - [ ] Promo Code Input (with apply/remove state)
 - [ ] Modal / Dialog
 - [ ] Toast / Notification (order placed, promo applied, errors)
@@ -256,7 +297,7 @@ Sanity Studio login → Products → Create/Edit product
 
 ---
 
-## 9. Open Design Questions
+## 11. Open Design Questions
 - Exact CMS-editable fields for the homepage hero (single hero vs. rotating carousel?)
 - Portable Text schema for the description field — which block types/styles the owner needs (headings, bullet lists for "care instructions" vs. "specifications") without overcomplicating the editor
 - Final choice of secondary sans font pairing for body text (Inter proposed, not yet confirmed against brand)
