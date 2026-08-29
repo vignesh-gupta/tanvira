@@ -37,32 +37,37 @@ export async function POST(request: Request) {
 
   const total = Math.max(subtotal - discount, 0)
 
-  const [address] = await db
-    .insert(addresses)
-    .values({ userId: session.user.id, ...shippingAddress })
-    .returning({ id: addresses.id })
+  try {
+    const [address] = await db
+      .insert(addresses)
+      .values({ userId: session.user.id, ...shippingAddress })
+      .returning({ id: addresses.id })
 
-  const receipt = `order_${Date.now()}`
-  const razorpayOrder = await createRazorpayOrder(total, receipt)
+    const receipt = `order_${Date.now()}`
+    const razorpayOrder = await createRazorpayOrder(total, receipt)
 
-  const [order] = await db
-    .insert(orders)
-    .values({
-      userId: session.user.id,
-      addressId: address.id,
-      items,
-      subtotal,
-      discount,
-      total,
-      promoCode: appliedPromoCode,
-      razorpayOrderId: razorpayOrder.id,
-    })
-    .returning({ id: orders.id })
+    const [order] = await db
+      .insert(orders)
+      .values({
+        userId: session.user.id,
+        addressId: address.id,
+        items,
+        subtotal,
+        discount,
+        total,
+        promoCode: appliedPromoCode,
+        razorpayOrderId: razorpayOrder.id,
+      })
+      .returning({ id: orders.id })
 
-  return NextResponse.json(
-    { orderId: order.id, razorpayOrderId: razorpayOrder.id, total },
-    { status: 201 },
-  )
+    return NextResponse.json(
+      { orderId: order.id, razorpayOrderId: razorpayOrder.id, total },
+      { status: 201 },
+    )
+  } catch (err) {
+    console.error("Order creation failed:", err)
+    return apiError(500, "internal_error", "Couldn't create your order — please try again.")
+  }
 }
 
 // Cursor pagination on (createdAt desc, id) — see DB_SCHEMA.md § Query Optimisation Notes.

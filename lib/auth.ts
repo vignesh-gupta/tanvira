@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { emailOTP } from "better-auth/plugins/email-otp"
 
 import { db } from "@/db"
+import * as schema from "@/db/schema"
 import { EMAIL_FROM, resend } from "@/lib/email/resend"
 import { OtpEmail } from "@/lib/email/templates/otp-email"
 
@@ -13,6 +14,10 @@ import { OtpEmail } from "@/lib/email/templates/otp-email"
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    // Required — without an explicit schema, the adapter can't resolve
+    // model names like "verification" to their Drizzle table objects and
+    // every auth call (including OTP send/verify) fails at runtime.
+    schema,
   }),
   plugins: [
     emailOTP({

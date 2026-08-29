@@ -2,14 +2,26 @@ import crypto from "node:crypto"
 
 import Razorpay from "razorpay"
 
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-})
+// Constructed lazily — the Razorpay SDK throws synchronously when key_id is
+// missing, and this module is imported at the top of app/api/orders/route.ts.
+// An eager instantiation would take down the entire orders endpoint
+// (including plain GET/order-history reads) whenever Razorpay keys aren't
+// configured yet, not just order creation.
+let client: Razorpay | undefined
+
+function getRazorpayClient() {
+  if (!client) {
+    client = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    })
+  }
+  return client
+}
 
 /** Amount must be an integer number of paise (INR's smallest unit). */
 export async function createRazorpayOrder(amountInPaise: number, receipt: string) {
-  return razorpay.orders.create({
+  return getRazorpayClient().orders.create({
     amount: amountInPaise,
     currency: "INR",
     receipt,
