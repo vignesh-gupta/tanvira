@@ -16,11 +16,31 @@ export const productCardFields = /* groq */ `{
   "badge": select(isBundle => "bundle", defined(*[_type == "promoCode" && isActive][0]) => null, null)
 }`
 
-export const PRODUCTS_QUERY = defineQuery(`
-  *[_type == "product" && isActive == true
-    && (!defined($categorySlug) || category->slug.current == $categorySlug)
-  ] | order(_createdAt desc) ${productCardFields}
-`)
+/**
+ * Paginated at the GROQ level via [$offset...$offset+$limit] — this fetches
+ * only one page's worth of documents from Sanity, not the whole catalog,
+ * so it stays cheap as the product count grows. `total` comes back in the
+ * same round trip so the page can render "Page X of Y" / disable Next
+ * without a second request.
+ *
+ * GROQ can't parameterize which field `order()` sorts by, so each sort
+ * option is its own query string rather than one query with a dynamic
+ * order clause.
+ */
+const productsFilter = /* groq */ `_type == "product" && isActive == true
+    && (!defined($categorySlug) || category->slug.current == $categorySlug)`
+
+const paginatedProducts = (orderClause: string) =>
+  defineQuery(`
+    {
+      "items": *[${productsFilter}] | order(${orderClause}) [$offset...$offset + $limit] ${productCardFields},
+      "total": count(*[${productsFilter}])
+    }
+  `)
+
+export const PRODUCTS_QUERY_NEWEST = paginatedProducts("_createdAt desc")
+export const PRODUCTS_QUERY_PRICE_ASC = paginatedProducts("price asc")
+export const PRODUCTS_QUERY_PRICE_DESC = paginatedProducts("price desc")
 
 export const PRODUCT_BY_SLUG_QUERY = defineQuery(`
   *[_type == "product" && slug.current == $slug && isActive == true][0]{

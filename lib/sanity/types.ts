@@ -27,3 +27,8 @@ export interface ProductDetail extends ProductCardData {
   category: { name: string; slug: string } | null
   bundleItems: ProductCardData[]
 }
+
+export interface PaginatedProducts {
+  items: ProductCardData[]
+  total: number
+}

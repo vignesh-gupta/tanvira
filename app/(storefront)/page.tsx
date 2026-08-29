@@ -1,25 +1,29 @@
 import Image from "next/image"
 import Link from "next/link"
 
-import { ProductCard, type ProductCardData } from "@/components/storefront/product-card"
+import { ProductCard } from "@/components/storefront/product-card"
 import { Button } from "@/components/ui/button"
 import { sanityFetch } from "@/sanity/lib/live"
-import { ACTIVE_BANNERS_QUERY, PRODUCTS_QUERY } from "@/lib/sanity/queries"
-import type { Banner } from "@/lib/sanity/types"
+import { ACTIVE_BANNERS_QUERY, PRODUCTS_QUERY_NEWEST } from "@/lib/sanity/queries"
+import type { Banner, PaginatedProducts } from "@/lib/sanity/types"
+
+const BESTSELLER_COUNT = 8
 
 export default async function LandingPage() {
   const [heroResult, collectionResult, productsResult] = await Promise.all([
     sanityFetch({ query: ACTIVE_BANNERS_QUERY, params: { placement: "hero" } }),
     sanityFetch({ query: ACTIVE_BANNERS_QUERY, params: { placement: "collection" } }),
-    sanityFetch({ query: PRODUCTS_QUERY, params: { categorySlug: null } }),
+    sanityFetch({
+      query: PRODUCTS_QUERY_NEWEST,
+      params: { categorySlug: null, offset: 0, limit: BESTSELLER_COUNT },
+    }),
   ])
 
   const heroBanners = heroResult.data as unknown as Banner[]
   const collectionBanners = collectionResult.data as unknown as Banner[]
-  const products = productsResult.data as unknown as ProductCardData[]
+  const { items: bestsellers } = productsResult.data as unknown as PaginatedProducts
 
   const hero = heroBanners?.[0]
-  const bestsellers = products?.slice(0, 8) ?? []
 
   return (
     <div>

@@ -1,31 +1,56 @@
 import Link from "next/link"
 
-import { ProductCard, type ProductCardData } from "@/components/storefront/product-card"
+import { ProductCard } from "@/components/storefront/product-card"
 import { cn } from "@/lib/utils"
 import { sanityFetch } from "@/sanity/lib/live"
-import { CATEGORIES_QUERY, PRODUCTS_QUERY } from "@/lib/sanity/queries"
-import type { Category } from "@/lib/sanity/types"
+import {
+  CATEGORIES_QUERY,
+  PRODUCTS_QUERY_NEWEST,
+  PRODUCTS_QUERY_PRICE_ASC,
+  PRODUCTS_QUERY_PRICE_DESC,
+} from "@/lib/sanity/queries"
+import type { Category, PaginatedProducts } from "@/lib/sanity/types"
 
 type SortOption = "newest" | "price-asc" | "price-desc"
+
+const PAGE_SIZE = 12
+
+const QUERY_BY_SORT = {
+  newest: PRODUCTS_QUERY_NEWEST,
+  "price-asc": PRODUCTS_QUERY_PRICE_ASC,
+  "price-desc": PRODUCTS_QUERY_PRICE_DESC,
+} as const
 
 export default async function ProductListingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sort?: string }>
+  searchParams: Promise<{ category?: string; sort?: string; page?: string }>
 }) {
-  const { category, sort } = await searchParams
+  const { category, sort, page: pageParam } = await searchParams
   const sortOption: SortOption =
     sort === "price-asc" || sort === "price-desc" ? sort : "newest"
+  const page = Math.max(1, Number(pageParam) || 1)
+  const offset = (page - 1) * PAGE_SIZE
 
   const [categoriesResult, productsResult] = await Promise.all([
     sanityFetch({ query: CATEGORIES_QUERY }),
-    sanityFetch({ query: PRODUCTS_QUERY, params: { categorySlug: category ?? null } }),
+    sanityFetch({
+      query: QUERY_BY_SORT[sortOption],
+      params: { categorySlug: category ?? null, offset, limit: PAGE_SIZE },
+    }),
   ])
 
   const categories = categoriesResult.data as unknown as Category[]
-  const products = [...((productsResult.data as unknown as ProductCardData[]) ?? [])]
-  if (sortOption === "price-asc") products.sort((a, b) => a.price - b.price)
-  if (sortOption === "price-desc") products.sort((a, b) => b.price - a.price)
+  const { items: products, total } = productsResult.data as unknown as PaginatedProducts
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  const hrefFor = (params: { category?: string; sort?: SortOption; page?: number }) => ({
+    query: {
+      ...(params.category ? { category: params.category } : {}),
+      ...(params.sort && params.sort !== "newest" ? { sort: params.sort } : {}),
+      ...(params.page && params.page > 1 ? { page: String(params.page) } : {}),
+    },
+  })
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -49,7 +74,7 @@ export default async function ProductListingPage({
             {categories?.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/products?category=${cat.slug}`}
+                href={hrefFor({ category: cat.slug, sort: sortOption })}
                 className={cn(
                   "rounded-full px-3 py-1 text-sm transition-colors sm:rounded-none sm:px-0 sm:py-1",
                   category === cat.slug
@@ -75,7 +100,7 @@ export default async function ProductListingPage({
             ).map((opt) => (
               <Link
                 key={opt.value}
-                href={{ query: { category, sort: opt.value } }}
+                href={hrefFor({ category, sort: opt.value })}
                 className={cn(
                   sortOption === opt.value
                     ? "font-medium text-primary"
@@ -92,11 +117,44 @@ export default async function ProductListingPage({
               No items match this filter yet — check back soon.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+
+              {totalPages > 1 ? (
+                <nav
+                  className="mt-8 flex items-center justify-center gap-4 text-sm"
+                  aria-label="Product pages"
+                >
+                  {page > 1 ? (
+                    <Link
+                      href={hrefFor({ category, sort: sortOption, page: page - 1 })}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Previous
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">Previous</span>
+                  )}
+                  <span className="text-muted-foreground">
+                    Page {page} of {totalPages}
+                  </span>
+                  {page < totalPages ? (
+                    <Link
+                      href={hrefFor({ category, sort: sortOption, page: page + 1 })}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Next
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">Next</span>
+                  )}
+                </nav>
+              ) : null}
+            </>
           )}
         </div>
       </div>
