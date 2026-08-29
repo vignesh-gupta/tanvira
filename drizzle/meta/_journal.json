@@ -8,6 +8,13 @@
       "when": 1787995944835,
       "tag": "0000_jittery_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788010515850,
+      "tag": "0001_white_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }
