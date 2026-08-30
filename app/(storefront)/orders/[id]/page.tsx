@@ -1,7 +1,9 @@
+import { ExternalLink } from "lucide-react"
 import { notFound } from "next/navigation"
 
 import { OrderStatusTimeline } from "@/components/storefront/order-status-timeline"
 import { StatusBadge } from "@/components/storefront/status-badge"
+import { Button } from "@/components/ui/button"
 import { formatRupees } from "@/lib/format"
 import { getOrderWithTimeline } from "@/lib/orders"
 
@@ -21,6 +23,14 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ id
       <div className="mb-8 rounded-lg border border-border p-6">
         <OrderStatusTimeline status={order.status} />
       </div>
+
+      {order.trackingUrl ? (
+        <Button asChild variant="outline" className="mb-8 w-full">
+          <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer">
+            Track package <ExternalLink className="size-4" />
+          </a>
+        </Button>
+      ) : null}
 
       <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
         <p className="mb-2 font-medium">Items</p>

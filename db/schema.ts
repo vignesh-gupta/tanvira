@@ -87,6 +87,9 @@ export const orders = pgTable("orders", {
   cashfreePaymentId: text("cashfree_payment_id"),
   refundId: text("refund_id"),
   refundedAmount: integer("refunded_amount"), // paise
+  // Required by the /api/orders/[id]/ship route before an order can move to
+  // "shipped" — surfaced to the customer as a "Track package" link.
+  trackingUrl: text("tracking_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 })

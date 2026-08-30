@@ -12,6 +12,7 @@ import {structureTool} from 'sanity/structure'
 import {apiVersion, dataset, projectId} from './sanity/env'
 import {schema} from './sanity/schemaTypes'
 import {structure} from './sanity/structure'
+import {ShipOrderTool} from './sanity/tools/ship-order-tool'
 
 export default defineConfig({
   basePath: '/studio',
@@ -24,5 +25,14 @@ export default defineConfig({
     // Vision is for querying with GROQ from inside the Studio
     // https://www.sanity.io/docs/the-vision-plugin
     visionTool({defaultApiVersion: apiVersion}),
+  ],
+  // Orders live in Postgres, not Sanity's dataset — this is a thin form over
+  // our own API (see sanity/tools/ship-order-tool.tsx), not a document editor.
+  tools: [
+    {
+      name: 'ship-order',
+      title: 'Ship Order',
+      component: ShipOrderTool,
+    },
   ],
 })

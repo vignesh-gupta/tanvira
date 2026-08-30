@@ -43,6 +43,13 @@
       "when": 1788076906432,
       "tag": "0005_add_cashfree_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788078368048,
+      "tag": "0006_add_tracking_url",
+      "breakpoints": true
     }
   ]
 }

@@ -30,3 +30,12 @@ export const createOrderSchema = z.object({
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
+
+// Tracking URL is mandatory here — an order can't be marked "shipped"
+// without one, since that's the only way the customer can follow their
+// package (see app/api/orders/[id]/ship/route.ts).
+export const shipOrderSchema = z.object({
+  trackingUrl: z.string().trim().url(),
+})
+
+export type ShipOrderInput = z.infer<typeof shipOrderSchema>
