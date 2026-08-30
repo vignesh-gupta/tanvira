@@ -8,12 +8,20 @@ import { addresses, orders } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { createOrderSchema } from "@/lib/validations/order"
 import { validatePromoCode } from "@/lib/promo"
-import { createRazorpayOrder } from "@/lib/payments/razorpay"
+import { createCashfreeOrder, hasActiveHighImpactIncident } from "@/lib/payments/cashfree"
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
     return apiError(401, "unauthorized", "You must be signed in to place an order.")
+  }
+
+  if (await hasActiveHighImpactIncident()) {
+    return apiError(
+      503,
+      "payment_incident",
+      "Payments are temporarily paused due to a payment gateway incident — please try again shortly.",
+    )
   }
 
   const parsed = createOrderSchema.safeParse(await request.json())
@@ -37,14 +45,18 @@ export async function POST(request: Request) {
 
   const total = Math.max(subtotal - discount, 0)
 
+  // Generated up front (not derived from the DB order id) so the order row
+  // can be inserted in one shot with a valid cashfreeOrderId already set —
+  // the alternative (create the Cashfree order first) can't build a
+  // return_url containing our own order id without a second round trip.
+  const cfOrderId = `order_${Date.now()}_${session.user.id.slice(0, 8)}`
+  let insertedOrderId: string | undefined
+
   try {
     const [address] = await db
       .insert(addresses)
       .values({ userId: session.user.id, ...shippingAddress })
       .returning({ id: addresses.id })
-
-    const receipt = `order_${Date.now()}`
-    const razorpayOrder = await createRazorpayOrder(total, receipt)
 
     const [order] = await db
       .insert(orders)
@@ -56,16 +68,32 @@ export async function POST(request: Request) {
         discount,
         total,
         promoCode: appliedPromoCode,
-        razorpayOrderId: razorpayOrder.id,
+        cashfreeOrderId: cfOrderId,
       })
       .returning({ id: orders.id })
+    insertedOrderId = order.id
 
-    return NextResponse.json(
-      { orderId: order.id, razorpayOrderId: razorpayOrder.id, total },
-      { status: 201 },
-    )
+    const { paymentSessionId } = await createCashfreeOrder({
+      orderId: cfOrderId,
+      amountInPaise: total,
+      customer: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        phone: shippingAddress.phone,
+      },
+      returnUrl: `${process.env.BETTER_AUTH_URL}/orders/${order.id}/confirmation?redirected=1`,
+      note: `Tanvira order ${order.id}`,
+    })
+
+    return NextResponse.json({ orderId: order.id, paymentSessionId, total }, { status: 201 })
   } catch (err) {
     console.error("Order creation failed:", err)
+    // If the Cashfree call failed after the order row was already inserted,
+    // don't leave an unpayable "placed" order behind.
+    if (insertedOrderId) {
+      await db.delete(orders).where(eq(orders.id, insertedOrderId))
+    }
     return apiError(500, "internal_error", "Couldn't create your order — please try again.")
   }
 }

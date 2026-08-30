@@ -39,7 +39,7 @@ This avoids re-implementing OTP generation/expiry/attempt-limiting logic Better 
 
 | Method | Path                | Description                                                                    | Auth?    | Request Body                                                                                     | Response                                                                 |
 | ------ | --------------------- | ------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `POST` | `/api/orders`          | Creates an order (status=`placed`) and a Razorpay order for payment                    | session  | `{ items: [{ productId, qty, price }], promoCode?: string, shippingAddress: object }`                    | `201 { orderId: string, razorpayOrderId: string, total: number }`                |
+| `POST` | `/api/orders`          | Creates an order (status=`placed`) and a Cashfree order for payment; checks Cashfree's live incident status first and returns `503` while a HIGH-impact incident is active | session  | `{ items: [{ productId, qty, price }], promoCode?: string, shippingAddress: object }`                    | `201 { orderId: string, paymentSessionId: string, total: number }`                |
 | `GET`  | `/api/orders/:id`      | Fetches an order's detail and status timeline                                          | session* | —                                                                                                        | `200 { id, status, items, total, timeline: [{status, changedAt}] }` or `404`     |
 | `GET`  | `/api/orders`          | Lists the current user's orders, newest first, for Order History                       | session  | — (query: `?cursor=` for pagination)                                                                     | `200 { orders: [...], nextCursor: string \| null }`                             |
 
@@ -55,9 +55,9 @@ This avoids re-implementing OTP generation/expiry/attempt-limiting logic Better 
 
 | Method | Path                        | Description                                                        | Auth?              | Request Body                             | Response          |
 | ------ | ----------------------------- | ------------------------------------------------------------------------ | ------------------- | ----------------------------------------------- | ----------------------- |
-| `POST` | `/api/webhooks/razorpay`       | Receives Razorpay payment events; verifies signature before processing     | Razorpay signature header | `{ event: string, payload: object }` (Razorpay's schema) | `200` (ack) or `400` if signature invalid |
+| `POST` | `/api/webhooks/cashfree`       | Receives Cashfree payment/refund events; verifies signature before processing     | Cashfree signature headers (`x-webhook-signature`, `x-webhook-timestamp`) | `{ type: string, data: object }` (Cashfree's schema) | `200` (ack) or `400` if signature invalid |
 
-Handled events: `payment.captured` (→ Order status `confirmed`, insert `OrderStatusHistory` row per [DB_SCHEMA.md](./DB_SCHEMA.md)), `payment.failed` (→ surfaced to the customer as a retryable error at Checkout Step 3, per [DESIGN.md](./DESIGN.md) § Screen Descriptions).
+Handled payment events: `PAYMENT_SUCCESS_WEBHOOK` (→ Order status `confirmed`, insert `OrderStatusHistory` row per [DB_SCHEMA.md](./DB_SCHEMA.md)), `PAYMENT_FAILED_WEBHOOK`/`PAYMENT_USER_DROPPED_WEBHOOK` (→ surfaced to the customer as a retryable error at Checkout Step 3, per [DESIGN.md](./DESIGN.md) § Screen Descriptions), `REFUND_STATUS_WEBHOOK` (→ Order status `refunded`, stores `refundId`/`refundedAmount`).
 
 ---
 
@@ -76,7 +76,8 @@ Standard error envelope for all non-2xx responses:
 | `404`         | `not_found`             | Order, product, or resource ID does not exist                          |
 | `409`         | `promo_limit_reached`   | Promo code's `usageLimit` already exhausted                            |
 | `422`         | `promo_invalid`         | Promo code expired, not yet valid, or inactive                         |
-| `400`         | `webhook_signature_invalid` | Razorpay webhook signature verification failed                    |
+| `400`         | `webhook_signature_invalid` | Cashfree webhook signature verification failed                    |
+| `503`         | `payment_incident`      | A HIGH-impact Cashfree incident is active — new orders are paused        |
 | `500`         | `internal_error`        | Unhandled server-side failure                                          |
 
 ---

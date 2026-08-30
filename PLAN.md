@@ -6,7 +6,7 @@
 
 Ordered implementation plan following Database → Backend Test Contracts → Backend → Frontend Test Contracts → Frontend. This is a **navigation document** — it says what to build and in what order, and references the authoritative detail files rather than duplicating their content.
 
-**Stack note:** Tanvira is a single Next.js application — there is no separate frontend/backend codebase. "Backend" in Phases 2–3 means Route Handlers and Server Actions living in `app/api/**` inside the same Next.js project as the pages; see [ARCHITECTURE.md](./ARCHITECTURE.md) § Module Breakdown. The stack (Next.js App Router + TypeScript, Tailwind + shadcn/ui, Sanity, Better Auth, Razorpay, Neon + Drizzle, Resend, Zod, TanStack Query, React Hook Form) is fixed — see [PRD.md](./PRD.md) § Tech Stack.
+**Stack note:** Tanvira is a single Next.js application — there is no separate frontend/backend codebase. "Backend" in Phases 2–3 means Route Handlers and Server Actions living in `app/api/**` inside the same Next.js project as the pages; see [ARCHITECTURE.md](./ARCHITECTURE.md) § Module Breakdown. The stack (Next.js App Router + TypeScript, Tailwind + shadcn/ui, Sanity, Better Auth, Cashfree, Neon + Drizzle, Resend, Zod, TanStack Query, React Hook Form) is fixed — see [PRD.md](./PRD.md) § Tech Stack.
 
 ---
 
@@ -32,16 +32,16 @@ Migration order (Postgres only — Sanity has no relational migrations):
 
 - Testing framework: **Jest** (unit + integration)
 - Service/helper methods to cover:
-  - `lib/payments` — create Razorpay order; verify webhook signature (valid/invalid/tampered payload)
+  - `lib/payments` — create Cashfree order; verify webhook signature (valid/invalid/tampered payload); create Cashfree refund
   - `lib/auth` — OTP request; OTP verify (correct/incorrect/expired); silent account creation on first successful verify
   - `lib/db` — promo code validation against validity window + usage limit; order status transition (valid/invalid transitions)
 - Route Handlers to cover (HTTP verb + path + expected success/error responses — no test code):
   - `POST /api/checkout/create-account` — 201 on valid OTP, 401 on invalid/expired OTP
-  - `POST /api/orders` — 201 with Razorpay order created, 400 on invalid cart/address payload
+  - `POST /api/orders` — 201 with Cashfree order created, 400 on invalid cart/address payload, 503 while a HIGH-impact incident is active
   - `GET /api/orders/:id` — 200 for existing order, 404 for unknown ID
   - `GET /api/orders` — 200 paginated list (session), 401 without session
   - `POST /api/promo/validate` — 200 valid/invalid shape per code state
-  - `POST /api/webhooks/razorpay` — 200 on verified `payment.captured`/`payment.failed`, 400 on signature mismatch
+  - `POST /api/webhooks/cashfree` — 200 on verified `PAYMENT_SUCCESS_WEBHOOK`/`PAYMENT_FAILED_WEBHOOK`/`REFUND_STATUS_WEBHOOK`, 400 on signature mismatch
 - Minimum coverage target: ≥80% on all new/changed code.
 
 → See [API_SPEC.md](./API_SPEC.md) for the endpoint contracts your tests must validate.
@@ -50,17 +50,17 @@ Migration order (Postgres only — Sanity has no relational migrations):
 
 ## Phase 3 — Backend
 
-- **Route Handlers** (`app/api/**/route.ts`): checkout account creation, orders CRUD, promo validation, Razorpay webhook receiver, Better Auth catch-all handler.
+- **Route Handlers** (`app/api/**/route.ts`): checkout account creation, orders CRUD, promo validation, Cashfree payment webhook receiver, Better Auth catch-all handler.
 - **Server Actions**: cart mutations (add/update/remove) where a Route Handler isn't needed — cart persists server-side keyed to a session cookie before auth, merged into the account's cart at account creation (see [PRD.md](./PRD.md) § Key Risks).
 - **Structure**: no feature-folder split by domain the way a separate Express service would have — Route Handlers live under `app/api/<resource>/route.ts`, shared logic lives in `lib/<concern>/` (`sanity`, `db`, `auth`, `payments`, `email`). See [ARCHITECTURE.md](./ARCHITECTURE.md) § Module Breakdown for the full tree.
 - **Auth**: Better Auth email-OTP plugin — see [ARCHITECTURE.md](./ARCHITECTURE.md) § Security Model for the session/authorization model (Customer vs. Owner, the latter being Sanity's own auth, not Better Auth).
 - **Business logic modules**:
-  - `lib/payments` — Razorpay order creation, Checkout.js trigger payload, webhook signature verification
+  - `lib/payments` — Cashfree order creation, hosted Web Checkout trigger payload, webhook signature verification, refund creation, live incident status check
   - `lib/auth` — Better Auth config + email-OTP plugin wiring
   - `lib/db` — Drizzle schema/client, order status transitions, promo redemption tracking
   - `lib/email` — Resend client + React Email templates (OTP, order confirmation, shipping update)
   - `lib/sanity` — client, GROQ queries, image URL builder
-- **Third-party integrations**: Razorpay (Orders API + Checkout.js + webhooks), Resend (email OTP + transactional email), Sanity (content), Neon (transactional data).
+- **Third-party integrations**: Cashfree (Orders API + hosted Web Checkout + payment/refund webhooks + live incident status API), Resend (email OTP + transactional email), Sanity (content), Neon (transactional data).
 
 → See [API_SPEC.md](./API_SPEC.md) for full endpoint contracts, request/response schemas, and error codes.
 
@@ -148,9 +148,9 @@ Implement in navigation-flow order (see [DESIGN.md](./DESIGN.md) § User Flows M
 ## Phase 6 — Cross-cutting
 
 - CI/CD: run Jest + Playwright on every PR; block merge on failing tests or <80% coverage on changed files.
-- `.env.example` covering: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_TOKEN`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `DATABASE_URL` (Neon).
-- Observability: structured logging on Route Handlers (esp. the Razorpay webhook), error tracking for unhandled exceptions surfaced to `error.tsx`.
-- Launch checklist: all [DESIGN.md](./DESIGN.md) screens implemented with default/loading/empty/error states; Razorpay test payment completes end-to-end; OTP login/checkout verified; owner can add a product/banner/promo code unaided; Lighthouse accessibility ≥90 on Landing, PLP, PDP, Checkout.
+- `.env.example` covering: `CASHFREE_CLIENT_ID`, `CASHFREE_CLIENT_SECRET`, `CASHFREE_ENV`, `NEXT_PUBLIC_CASHFREE_ENV`, `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_TOKEN`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `DATABASE_URL` (Neon).
+- Observability: structured logging on Route Handlers (esp. the Cashfree webhooks), error tracking for unhandled exceptions surfaced to `error.tsx`.
+- Launch checklist: all [DESIGN.md](./DESIGN.md) screens implemented with default/loading/empty/error states; Cashfree sandbox test payment completes end-to-end; OTP login/checkout verified; owner can add a product/banner/promo code unaided; Lighthouse accessibility ≥90 on Landing, PLP, PDP, Checkout.
 
 → See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system diagram, deployment topology, and security model.
 
@@ -159,7 +159,7 @@ Implement in navigation-flow order (see [DESIGN.md](./DESIGN.md) § User Flows M
 ## Definition of Done (v1)
 
 - [ ] All screens in [DESIGN.md](./DESIGN.md) implemented with default/loading/empty/error states
-- [ ] Checkout completes end-to-end with a real Razorpay test payment (UPI + card)
+- [ ] Checkout completes end-to-end with a real Cashfree sandbox test payment (UPI + card)
 - [ ] Account is created silently at checkout with no visible "sign up" step
 - [ ] Returning customer can OTP-login and see order history
 - [ ] Owner can add a product, publish a banner, and create a promo code without developer help

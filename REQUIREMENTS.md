@@ -10,7 +10,7 @@ Distilled from the Figma design (screens, components, flows — see [DESIGN.md](
 
 ## Overview
 
-Tanvira is a Next.js storefront for a mass-market imitation/fashion jewellery brand. Customers browse a filterable catalog, add to cart directly from the listing grid or the product detail page, complete a single-flow checkout that silently creates an account via email OTP, pay via Razorpay, and track their order. The owner manages the entire catalog, promotions, and homepage content through Sanity Studio without developer involvement.
+Tanvira is a Next.js storefront for a mass-market imitation/fashion jewellery brand. Customers browse a filterable catalog, add to cart directly from the listing grid or the product detail page, complete a single-flow checkout that silently creates an account via email OTP, pay via Cashfree, and track their order. The owner manages the entire catalog, promotions, and homepage content through Sanity Studio without developer involvement.
 
 ---
 
@@ -26,17 +26,19 @@ Tanvira is a Next.js storefront for a mass-market imitation/fashion jewellery br
 8. The Cart must accept a promo code and display subtotal, discount, and total; an invalid or expired code must show a specific inline error.
 9. Checkout must collect name and email, verify an email OTP, and silently create a Better Auth account on success — no separate sign-up screen may ever be shown.
 10. Checkout must collect a shipping address, including phone number captured purely as a delivery-contact field (not used for authentication).
-11. Checkout must create a Razorpay order and trigger Checkout.js for UPI, card, and netbanking payment.
-12. An order must not be marked "Confirmed" until the `payment.captured` Razorpay webhook is verified server-side — client-side redirect alone is not sufficient.
-13. A failed OTP or failed payment must be retryable without the customer losing already-entered checkout data.
-14. Order Confirmation must display the order ID, summary, delivery address, and estimated timeline, with a link to the Order Status page.
-15. Order Status must display a timeline (Placed → Confirmed → Shipped → Delivered, or Cancelled/Refunded as terminal states), order items, address, and payment summary.
-16. Returning customers must be able to log in with email OTP (no password) to view Order History.
-17. Order History must list past orders with date, status, total, and a link to each order's detail.
-18. Promo codes must be validated against their validity window and usage limit, with redemptions tracked to prevent reuse beyond the limit.
-19. Bundle products must be modeled as a product type (not a separate system) and must list their component items on the PDP and in cart/order line items.
-20. The owner must be able to manage products, categories, bundles, homepage banners/content, and promo codes via Sanity Studio, and view orders read-only.
-21. Legal pages (Privacy Policy, Terms of Service, Shipping & Returns) must be reachable from the global footer.
+11. Checkout must create a Cashfree order and redirect to Cashfree's hosted Web Checkout for UPI, card, and netbanking payment.
+12. An order must not be marked "Confirmed" until the `PAYMENT_SUCCESS_WEBHOOK` Cashfree webhook is verified server-side — client-side redirect alone is not sufficient.
+13. New orders must be paused (not just the order confirmation, the order/payment creation itself) while a HIGH-impact Cashfree incident is active, checked live via Cashfree's incident status API.
+14. A refund processed on Cashfree (dashboard or API) must be synced back to the order via the `REFUND_STATUS_WEBHOOK`, marking the order "Refunded" and recording the refund ID/amount.
+15. A failed OTP or failed payment must be retryable without the customer losing already-entered checkout data.
+16. Order Confirmation must display the order ID, summary, delivery address, and estimated timeline, with a link to the Order Status page.
+17. Order Status must display a timeline (Placed → Confirmed → Shipped → Delivered, or Cancelled/Refunded as terminal states), order items, address, and payment summary.
+18. Returning customers must be able to log in with email OTP (no password) to view Order History.
+19. Order History must list past orders with date, status, total, and a link to each order's detail.
+20. Promo codes must be validated against their validity window and usage limit, with redemptions tracked to prevent reuse beyond the limit.
+21. Bundle products must be modeled as a product type (not a separate system) and must list their component items on the PDP and in cart/order line items.
+22. The owner must be able to manage products, categories, bundles, homepage banners/content, and promo codes via Sanity Studio, and view orders read-only.
+23. Legal pages (Privacy Policy, Terms of Service, Shipping & Returns) must be reachable from the global footer.
 22. 404, 500, and offline states must render branded fallback pages with a way back to the storefront (home link or retry).
 23. The global header must show a live cart item count and a login/account entry point.
 
@@ -46,8 +48,8 @@ Tanvira is a Next.js storefront for a mass-market imitation/fashion jewellery br
 
 - **Performance:** Product pages use SSR/ISR so first-load content doesn't depend on client-side CMS fetches; skeleton loaders cover PLP grid, PDP, and cart while data loads.
 - **Accessibility:** WCAG 2.1 AA. Minimum 4.5:1 contrast for body text and 3:1 for large text; all interactive elements keyboard-navigable; `aria-label`s on icon-only buttons; visible focus indicators; alt text required (enforced as a required Sanity field, not convention); order status timeline readable as a sequence by screen readers, not just implied by icon position.
-- **Security:** Razorpay webhook payloads must be signature-verified before an order status changes. Session/auth state is owned entirely by Better Auth (email OTP) — no passwords are stored anywhere. All form and API-route input validated with Zod at the boundary.
-- **Scalability:** v1 is deliberately sized for a solo-owner small business — Vercel + Neon + Sanity + Resend free tiers, Razorpay pay-per-transaction. No load beyond a small storefront's traffic is assumed; the stack should not need a rewrite if the business grows, but is not pre-optimized for scale it doesn't have yet.
+- **Security:** Cashfree webhook payloads (payment and refund) must be signature-verified before an order status changes. Session/auth state is owned entirely by Better Auth (email OTP) — no passwords are stored anywhere. All form and API-route input validated with Zod at the boundary.
+- **Scalability:** v1 is deliberately sized for a solo-owner small business — Vercel + Neon + Sanity + Resend free tiers, Cashfree pay-per-transaction. No load beyond a small storefront's traffic is assumed; the stack should not need a rewrite if the business grows, but is not pre-optimized for scale it doesn't have yet.
 - **Reliability:** Cart state persisted server-side keyed to a session cookie before authentication, merged into the customer's account cart at account creation, so nothing is lost mid-checkout.
 - **Maintainability:** The owner must be able to add or update a product in the CMS in under 5 minutes without developer help.
 
@@ -55,7 +57,7 @@ Tanvira is a Next.js storefront for a mass-market imitation/fashion jewellery br
 
 ## Assumptions
 
-- Owner is not GST-registered at launch; Razorpay onboarding uses PAN + bank account as a sole proprietor, and checkout issues simple receipts, not GST tax invoices, until registration happens.
+- Owner is not GST-registered at launch; Cashfree onboarding uses PAN + bank account as a sole proprietor, and checkout issues simple receipts, not GST tax invoices, until registration happens.
 - Product photography is supplied by the owner.
 - Shipping/logistics are handled manually; order status is updated by hand in the CMS rather than pulled from a courier API in v1.
 - Single currency (INR), single region (India) for v1.

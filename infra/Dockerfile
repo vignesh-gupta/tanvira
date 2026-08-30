@@ -20,7 +20,7 @@ COPY . .
 # and are needed for real here, not as placeholders: any page Next.js
 # decides to prerender at build time will actually call Sanity with them.
 # Pass the real values via --build-arg; everything secret (DATABASE_URL,
-# RAZORPAY_*, RESEND_API_KEY, BETTER_AUTH_SECRET) stays runtime-only via
+# CASHFREE_*, RESEND_API_KEY, BETTER_AUTH_SECRET) stays runtime-only via
 # env_file/platform env vars and is never baked into the image.
 ARG NEXT_PUBLIC_SANITY_PROJECT_ID
 ARG NEXT_PUBLIC_SANITY_DATASET=production

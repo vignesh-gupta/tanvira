@@ -58,7 +58,7 @@ Derived from the Tanvira logo (burgundy background, cream wordmark, gold diamond
 | Cart                   | `/cart`                     | Line items, promo code, subtotal/discount/total                      | Cart Line Item, Promo Code Input, Button                              |
 | Checkout — Step 1      | `/checkout`                 | Name + email, OTP verification                                       | Input (OTP segmented), Checkout Steps, Button                         |
 | Checkout — Step 2      | `/checkout`                 | Shipping address (phone as contact field)                            | Input, Checkout Steps                                                 |
-| Checkout — Step 3      | `/checkout`                 | Order summary, Razorpay payment trigger                              | Checkout Steps, Promo Code Input, Button                              |
+| Checkout — Step 3      | `/checkout`                 | Order summary, Cashfree payment trigger                              | Checkout Steps, Promo Code Input, Button                              |
 | Order Confirmation     | `/orders/[id]/confirmation` | Order ID, summary, delivery estimate                                  | Status Badge, Button                                                  |
 | Order Status           | `/orders/[id]`              | Status timeline, items, address, payment summary                     | Order Status Timeline, Status Badge, Breadcrumb                       |
 | Order History          | `/account/orders`           | Logged-in customer's past orders (OTP-gated)                          | Status Badge, Breadcrumb                                              |
@@ -168,7 +168,7 @@ Sanity Studio login → Products → Create/Edit product
 **Key elements:**
 - Step 1: Name + Email + OTP verification (auto-creates account on submit)
 - Step 2: Shipping address (includes phone as a plain contact field)
-- Step 3: Order summary + Razorpay payment trigger
+- Step 3: Order summary + Cashfree payment trigger
 - Promo code re-entry point
 
 **States:** Default | Loading (during OTP send / payment processing) | Error (OTP invalid, payment failed — both must offer a clear retry) | Success (redirects to Order Confirmation)

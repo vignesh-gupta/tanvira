@@ -1,8 +1,7 @@
 "use client"
 
-import Script from "next/script"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,12 +14,6 @@ import { authClient } from "@/lib/auth-client"
 import { useCart } from "@/lib/cart/cart-context"
 import { formatRupees } from "@/lib/format"
 
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => { open: () => void }
-  }
-}
-
 type Address = {
   line1: string
   line2: string
@@ -31,8 +24,7 @@ type Address = {
 }
 
 export default function CheckoutPage() {
-  const { items, subtotal, clear } = useCart()
-  const router = useRouter()
+  const { items, subtotal } = useCart()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
 
@@ -130,25 +122,16 @@ export default function CheckoutPage() {
         return
       }
 
-      const { orderId, razorpayOrderId, total: orderTotal } = await res.json()
+      const { paymentSessionId } = await res.json()
 
-      const razorpay = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderTotal,
-        currency: "INR",
-        name: "Tanvira",
-        order_id: razorpayOrderId,
-        prefill: { name, email },
-        theme: { color: "#5B0E22" },
-        handler: () => {
-          clear()
-          router.push(`/orders/${orderId}/confirmation`)
-        },
-        modal: {
-          ondismiss: () => setPaying(false),
-        },
+      // Cart is cleared on the confirmation page once payment is actually
+      // confirmed, not here — the browser is about to leave for Cashfree's
+      // hosted checkout page and may come straight back on a failed/dropped
+      // payment (see components/storefront/order-confirmation.tsx).
+      const cashfree = await loadCashfree({
+        mode: (process.env.NEXT_PUBLIC_CASHFREE_ENV as "sandbox" | "production") ?? "sandbox",
       })
-      razorpay.open()
+      cashfree.checkout({ paymentSessionId, redirectTarget: "_self" })
     } catch {
       toast.error("Something went wrong starting payment — please retry")
       setPaying(false)
@@ -157,7 +140,6 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-8 sm:px-6">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       <CheckoutSteps currentStep={step} />
 
       {step === 1 && (

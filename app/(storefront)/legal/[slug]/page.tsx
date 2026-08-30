@@ -5,7 +5,7 @@ const LEGAL_PAGES: Record<string, { title: string; body: string[] }> = {
     title: "Privacy Policy",
     body: [
       "We collect only what's needed to process your order: your name, email, delivery address, and phone number as a delivery-contact field.",
-      "We never sell your data. Payment details are handled entirely by Razorpay and never touch our servers.",
+      "We never sell your data. Payment details are handled entirely by Cashfree and never touch our servers.",
       "Your email is used for order updates and, if you choose, to sign in via a one-time code — we never ask for or store a password.",
     ],
   },

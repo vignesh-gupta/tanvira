@@ -103,8 +103,8 @@ async function seed() {
         discount,
         total,
         promoCode: o.promoCode,
-        razorpayOrderId: `seed_rzp_${o.id}`,
-        razorpayPaymentId: o.status === "placed" ? null : `seed_pay_${o.id}`,
+        cashfreeOrderId: `seed_cf_${o.id}`,
+        cashfreePaymentId: o.status === "placed" ? null : `seed_pay_${o.id}`,
       })
       .onConflictDoUpdate({
         target: orders.id,

@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Tanvira needs a direct-to-consumer storefront so it can stop selling through Instagram DMs and WhatsApp. This PRD scopes a Next.js storefront — landing, browsable catalog with quick Add to Cart from the grid (mass-market imitation-jewellery pricing is low-consideration), cart, a single-flow checkout that silently creates an account via email OTP, Razorpay payments, and order tracking — plus a Sanity Studio CMS so the owner can run products, banners, and promo codes herself. v1 deliberately runs at $0 fixed cost (Vercel/Neon/Sanity/Resend free tiers + Razorpay's per-transaction fee) and defers anything that isn't needed to take the first sale (wishlists, reviews, loyalty, multi-currency, a native app). See [DESIGN.md](./DESIGN.md) for screens/flows and [ARCHITECTURE.md](./ARCHITECTURE.md) for the technical shape.
+Tanvira needs a direct-to-consumer storefront so it can stop selling through Instagram DMs and WhatsApp. This PRD scopes a Next.js storefront — landing, browsable catalog with quick Add to Cart from the grid (mass-market imitation-jewellery pricing is low-consideration), cart, a single-flow checkout that silently creates an account via email OTP, Cashfree payments, and order tracking — plus a Sanity Studio CMS so the owner can run products, banners, and promo codes herself. v1 deliberately runs at $0 fixed cost (Vercel/Neon/Sanity/Resend free tiers + Cashfree's per-transaction fee) and defers anything that isn't needed to take the first sale (wishlists, reviews, loyalty, multi-currency, a native app). See [DESIGN.md](./DESIGN.md) for screens/flows and [ARCHITECTURE.md](./ARCHITECTURE.md) for the technical shape.
 
 ---
 
@@ -75,7 +75,7 @@ A lean, elegant direct-to-consumer storefront for Tanvira — a mass-market imit
 - Product detail page: images, rich-text description (material, size/length, care details all authored as part of the description — no separate variant selector UI), bundle products
 - Cart: add/update/remove, persists across session
 - Checkout: single flow collecting name + email → auto-creates account via email OTP (no separate sign-up) → shipping address (phone collected here as a plain delivery-contact field, not used for auth) → payment
-- Payments: Razorpay (UPI, cards, netbanking)
+- Payments: Cashfree (UPI, cards, netbanking)
 - Order confirmation page + order status pages (Placed, Confirmed, Shipped, Delivered, Cancelled, Refunded)
 - Passwordless login (email OTP) for returning customers to view order history
 - Discount / promo codes applied at cart or checkout
@@ -102,8 +102,8 @@ A lean, elegant direct-to-consumer storefront for Tanvira — a mass-market imit
 | Product listing + quick Add to Cart | P0     | Category/price filters, sort, product grid with an Add to Cart button on every card              | Adding from the grid updates cart count and shows inline confirmation without leaving the page; tapping image/name opens the PDP |
 | Product detail page               | P0       | Gallery, rich-text description (material/size/care as one CMS block), bundle contents, Add to Cart | Out-of-stock disables the CTA; bundle products list their contents; description renders CMS rich text with correct semantics |
 | Cart                              | P0       | Line items, quantity stepper, remove, promo code, subtotal/discount/total                        | Cart persists across a session reload; invalid promo codes show a clear inline error                                        |
-| Checkout (single flow)            | P0       | Name + email → email OTP → auto-created account → address → Razorpay payment                     | No separate "sign up" screen is ever shown; a failed OTP or failed payment can be retried without losing entered data       |
-| Payments (Razorpay)               | P0       | UPI, cards, netbanking via Orders API + Checkout.js, webhook-confirmed                            | Order only moves to "Confirmed" after the `payment.captured` webhook is verified, not on client-side redirect alone         |
+| Checkout (single flow)            | P0       | Name + email → email OTP → auto-created account → address → Cashfree payment                     | No separate "sign up" screen is ever shown; a failed OTP or failed payment can be retried without losing entered data       |
+| Payments (Cashfree)               | P0       | UPI, cards, netbanking via Orders API + hosted Web Checkout, webhook-confirmed                    | Order only moves to "Confirmed" after the `PAYMENT_SUCCESS_WEBHOOK` webhook is verified, not on client-side redirect alone   |
 | Order confirmation + status pages | P0       | Order summary right after payment; status timeline (Placed→Confirmed→Shipped→Delivered/Cancelled/Refunded) | Status page is reachable via a shareable order link and reflects the latest owner-updated status                      |
 | Passwordless login + order history | P0      | Returning customer logs in with email OTP to view past orders                                    | No password is ever set or requested; login re-uses the same Better Auth OTP mechanism as checkout                          |
 | Discount / promo codes            | P1       | Applied at cart or re-applied at checkout                                                        | A code past its validity window or usage limit is rejected with a specific reason, not a generic error                      |
@@ -121,7 +121,7 @@ No fixed launch date was specified — the plan below is phased so the store can
 | Milestone       | Description                                                                           |
 | --------------- | ------------------------------------------------------------------------------------- |
 | Foundation      | Next.js + Tailwind + shadcn scaffold, design tokens, Sanity schema, Better Auth setup |
-| Core commerce   | Product listing/detail, cart, checkout flow, Razorpay integration                     |
+| Core commerce   | Product listing/detail, cart, checkout flow, Cashfree integration                     |
 | Orders & CMS    | Order status pages, promo codes, full CMS content types, order history                |
 | Polish & launch | Responsive QA, accessibility pass, empty/error/loading states, soft launch            |
 
@@ -131,11 +131,11 @@ No fixed launch date was specified — the plan below is phased so the store can
 
 ### Assumptions & Dependencies
 
-- Owner is not currently GST-registered; Razorpay onboarding will use PAN + bank account as a sole proprietor (permitted below the GST threshold), and checkout will issue simple receipts, not tax invoices, until GST registration happens
+- Owner is not currently GST-registered; Cashfree onboarding will use PAN + bank account as a sole proprietor (permitted below the GST threshold), and checkout will issue simple receipts, not tax invoices, until GST registration happens
 - Product photography is supplied by the owner
 - Shipping/logistics are handled manually by the owner; order status is updated by hand in the CMS rather than pulled from a courier API in v1
 - Single currency (INR), single region (India) for v1
-- v1 runs entirely on free tiers (Vercel, Neon, Sanity, Resend) plus Razorpay's pay-per-transaction fee — there is no fixed monthly cost until the store has actual sales
+- v1 runs entirely on free tiers (Vercel, Neon, Sanity, Resend) plus Cashfree's pay-per-transaction fee — there is no fixed monthly cost until the store has actual sales
 - Phone number is collected at checkout as a plain delivery-contact field, not used for authentication, so no SMS OTP provider is needed for v1
 - SMS OTP (e.g. via MSG91) is deferred to a later phase once revenue justifies the recurring per-message cost; Better Auth's architecture supports adding it later without restructuring auth
 
@@ -144,7 +144,7 @@ No fixed launch date was specified — the plan below is phased so the store can
 | Risk                                                             | Mitigation                                                                                            |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Email OTP lands in spam / delivery delays                         | Verified Resend sending domain from day one; monitor deliverability; add SMS OTP once revenue justifies it |
-| Razorpay onboarding delay without GSTIN                           | Apply as sole proprietor with PAN; issue receipts, not tax invoices, until GST registration                |
+| Cashfree onboarding delay without GSTIN                           | Apply as sole proprietor with PAN; issue receipts, not tax invoices, until GST registration                |
 | Owner breaks storefront layout via CMS                            | Constrain Sanity schema (required alt text, fixed banner aspect ratios, no free-form HTML)                 |
 | Cart/session continuity when checkout auto-creates an account mid-flow | Persist cart server-side keyed to session cookie pre-auth, merge into user's cart on account creation |
 | Manual order status updates forgotten by a solo owner              | CMS/dashboard view sorted by "oldest un-updated order"                                                     |
@@ -171,7 +171,7 @@ No fixed launch date was specified — the plan below is phased so the store can
 | CMS                  | Sanity                                          | Content-only: products, categories, bundles, banners, promo definitions. Fetched via `next-sanity` + GROQ, images via Sanity's image URL builder                                                                                                      |
 | Auth                 | Better Auth                                     | Passwordless, email OTP plugin. Account is silently created the moment a customer enters name + email at checkout — no separate sign-up screen. Phone number is captured separately as a plain delivery-contact field, not used for auth in v1        |
 | Transactional email  | Resend + React Email                            | Order confirmation, shipping updates, and email OTP for login — free tier (3,000 emails/month) covers v1 entirely                                                                                                                                     |
-| Payments             | Razorpay                                        | Orders API + Checkout.js; UPI, cards, netbanking; webhook-driven payment confirmation. No fixed fee — only a per-transaction charge, so effectively free until there are sales. Onboarding possible with just PAN (no GSTIN required below threshold) |
+| Payments             | Cashfree                                        | Orders API + hosted Web Checkout; UPI, cards, netbanking; webhook-driven payment confirmation, refund sync, and incident-aware pausing. No fixed fee — only a per-transaction charge, so effectively free until there are sales. Onboarding possible with just PAN (no GSTIN required below threshold) |
 | Database             | Neon (Postgres) + Drizzle ORM                   | Free tier. Holds transactional data: users (Better Auth tables), orders, payments, promo redemptions. Sanity is intentionally kept content-only, since it isn't built for high-write transactional data                                               |
 | Validation           | Zod                                             | Shared schema validation across forms and API routes                                                                                                                                                                                                  |
 | Client data/state    | TanStack Query                                  | Cart sync, order status polling                                                                                                                                                                                                                       |
@@ -181,4 +181,4 @@ No fixed launch date was specified — the plan below is phased so the store can
 
 **Architecture note:** Sanity owns _content_ (what's editable by the owner without touching data integrity — products, banners, promo rules). Postgres owns _transactions_ (what must be consistent and queryable — users, orders, payments). This split keeps the CMS simple for a non-technical owner while keeping order data reliable.
 
-**Cost note:** With this configuration, v1 runs at $0 fixed cost — the only spend is Razorpay's per-transaction fee, which only applies once a sale actually happens.
+**Cost note:** With this configuration, v1 runs at $0 fixed cost — the only spend is Cashfree's per-transaction fee, which only applies once a sale actually happens.

@@ -135,8 +135,10 @@ Fields:
   - discount
   - total
   - addressId (FK → Address.id)
-  - razorpayOrderId
-  - razorpayPaymentId (nullable until captured)
+  - cashfreeOrderId
+  - cashfreePaymentId (nullable until captured)
+  - refundId (nullable)
+  - refundedAmount (nullable)
   - createdAt
 Relations:
   - belongs to User
@@ -170,6 +172,8 @@ Relations:
 Note: used to enforce Sanity's usageLimit without giving Sanity write access to transactional counts.
 ```
 
+Note: incident/downtime state is **not** mirrored into Postgres — `POST /api/orders` calls Cashfree's `GET /incident?incident_status=ACTIVE&incident_impact=HIGH` live at order-creation time instead, since Cashfree already exposes that as a queryable API. No table, no webhook, no storage for this.
+
 ---
 
 ## Migration Order
@@ -193,7 +197,7 @@ Applies to Postgres only — Sanity has no relational migration concept (schema 
 | List a user's orders for Order History, newest first              | `orders.userId, orders.createdAt DESC`      | Composite index — filter + sort is the exact Order History query pattern    |
 | Fetch a single order for Order Status by ID                       | `orders.id` (PK, already indexed)           | Equality lookup, high selectivity                                           |
 | Render an order's status timeline                                 | `order_status_history.orderId`              | Equality lookup, low cardinality per order (≤6 rows)                        |
-| Match a Razorpay webhook payload back to an order                 | `orders.razorpayOrderId` (unique index)     | Equality lookup on every webhook delivery; must be unique to avoid double-processing |
+| Match a Cashfree webhook payload back to an order                 | `orders.cashfreeOrderId` (unique index)     | Equality lookup on every webhook delivery; must be unique to avoid double-processing |
 | Enforce a promo code's usage limit                                 | `promo_redemptions.promoCode`               | Count query per checkout attempt with a promo code applied                  |
 | List a user's saved addresses                                     | `addresses.userId`                          | Equality lookup, low cardinality per user                                   |
 

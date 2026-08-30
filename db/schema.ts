@@ -83,8 +83,10 @@ export const orders = pgTable("orders", {
   discount: integer("discount").notNull().default(0), // paise
   total: integer("total").notNull(), // paise
   promoCode: text("promo_code"),
-  razorpayOrderId: text("razorpay_order_id").notNull(),
-  razorpayPaymentId: text("razorpay_payment_id"),
+  cashfreeOrderId: text("cashfree_order_id").notNull(),
+  cashfreePaymentId: text("cashfree_payment_id"),
+  refundId: text("refund_id"),
+  refundedAmount: integer("refunded_amount"), // paise
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 })

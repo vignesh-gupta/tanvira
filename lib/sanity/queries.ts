@@ -2,7 +2,7 @@ import { defineQuery } from "next-sanity"
 
 /**
  * Price is authored in rupees in Sanity (see product.ts) and converted to
- * paise here so every consumer downstream (cart, orders, Razorpay) works in
+ * paise here so every consumer downstream (cart, orders, Cashfree) works in
  * a single integer unit.
  */
 export const productCardFields = /* groq */ `{

@@ -1,102 +1,74 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import Link from "next/link"
-import { CheckCircle2, Loader2 } from "lucide-react"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 
 import type { OrderStatus } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
 import type { OrderItem } from "@/db/schema"
+import { useCart } from "@/lib/cart/cart-context"
 import { formatRupees } from "@/lib/format"
 
-const POLL_INTERVAL_MS = 2000
-const MAX_POLLS = 30 // ~60s — Razorpay webhooks land in a couple of seconds in practice
-
-// Short polling: simplest option that works unchanged on serverless/edge
-// hosting (no long-lived connection to keep alive, unlike long-polling or
-// SSE), and confirmation only needs to happen once per checkout.
-function usePolledOrderStatus(orderId: string, initialStatus: OrderStatus) {
-  const [status, setStatus] = useState<OrderStatus>(initialStatus)
-  const [timedOut, setTimedOut] = useState(false)
-
-  useEffect(() => {
-    if (status !== "placed") return
-
-    let cancelled = false
-    let attempts = 0
-    let timeoutId: ReturnType<typeof setTimeout>
-
-    async function poll() {
-      attempts += 1
-      try {
-        const res = await fetch(`/api/orders/${orderId}/status`, { cache: "no-store" })
-        if (res.ok) {
-          const data = (await res.json()) as { status: OrderStatus }
-          if (!cancelled && data.status !== "placed") {
-            setStatus(data.status)
-            return
-          }
-        }
-      } catch {
-        // network hiccup — just retry on the next tick
-      }
-      if (cancelled) return
-      if (attempts >= MAX_POLLS) {
-        setTimedOut(true)
-        return
-      }
-      timeoutId = setTimeout(poll, POLL_INTERVAL_MS)
-    }
-
-    timeoutId = setTimeout(poll, POLL_INTERVAL_MS)
-    return () => {
-      cancelled = true
-      clearTimeout(timeoutId)
-    }
-  }, [orderId, status])
-
-  return { status, timedOut }
-}
+type LiveHint = "PAID" | "ACTIVE" | "EXPIRED" | "TERMINATED" | undefined
 
 export function OrderConfirmation({
   orderId,
   initialStatus,
+  liveHint,
   items,
   total,
 }: {
   orderId: string
   initialStatus: OrderStatus
+  liveHint?: LiveHint
   items: OrderItem[]
   total: number
 }) {
-  const { status, timedOut } = usePolledOrderStatus(orderId, initialStatus)
-  const isPending = status === "placed" && !timedOut
+  const { clear } = useCart()
+
+  const confirmed = initialStatus !== "placed"
+  const paymentReceived = confirmed || liveHint === "PAID"
+  const paymentFailed = !confirmed && (liveHint === "EXPIRED" || liveHint === "TERMINATED")
+  const stillConfirming = !confirmed && !paymentFailed
+
+  // Cart clearing used to happen in the Razorpay checkout `handler` callback;
+  // now that the browser round-trips through Cashfree's hosted page, it's
+  // done here instead, once we can see payment actually went through.
+  useEffect(() => {
+    if (paymentReceived) clear()
+  }, [paymentReceived, clear])
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center sm:px-6">
-      {isPending ? (
+      {paymentFailed ? (
         <>
-          <Loader2 className="mx-auto size-12 animate-spin text-primary" />
-          <h1 className="mt-4 font-heading text-2xl">Confirming your payment…</h1>
+          <XCircle className="mx-auto size-12 text-destructive" />
+          <h1 className="mt-4 font-heading text-2xl">Payment didn&apos;t go through</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This usually takes just a few seconds — don&apos;t close this page.
+            Your order wasn&apos;t charged. You can try again from your cart.
           </p>
         </>
-      ) : timedOut ? (
+      ) : stillConfirming ? (
         <>
           <Loader2 className="mx-auto size-12 text-muted-foreground" />
           <h1 className="mt-4 font-heading text-2xl">Still confirming</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             This is taking longer than usual. We&apos;ll email you the moment it&apos;s confirmed —
-            you can also check back on your order status page.
+            you can also refresh this page or check back on your order status page.
           </p>
         </>
       ) : (
         <>
           <CheckCircle2 className="mx-auto size-12 text-success" />
-          <h1 className="mt-4 font-heading text-2xl">Order confirmed!</h1>
+          <h1 className="mt-4 font-heading text-2xl">
+            {confirmed ? "Order confirmed!" : "Payment received!"}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            We&apos;ve emailed your confirmation. Order ID: <span className="font-mono">{orderId}</span>
+            {confirmed
+              ? "We've emailed your confirmation."
+              : "We're finalizing your order — you'll get an email shortly."}{" "}
+            Order ID: <span className="font-mono">{orderId}</span>
           </p>
         </>
       )}
@@ -116,7 +88,11 @@ export function OrderConfirmation({
         </div>
       </div>
 
-      {!isPending ? (
+      {paymentFailed ? (
+        <Button asChild className="mt-6">
+          <Link href="/checkout">Retry payment</Link>
+        </Button>
+      ) : confirmed ? (
         <Button asChild className="mt-6">
           <Link href={`/orders/${orderId}`}>Track your order</Link>
         </Button>
