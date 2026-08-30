@@ -14,7 +14,12 @@ interface CashfreeWebhookPayload {
   data: {
     order: { order_id: string }
     payment?: { cf_payment_id: string }
-    refund?: { cf_refund_id: string; refund_id: string; refund_amount: number; refund_status: string }
+    refund?: {
+      cf_refund_id: string
+      refund_id: string
+      refund_amount: number
+      refund_status: string
+    }
   }
 }
 
@@ -24,13 +29,29 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-webhook-signature")
 
   if (!verifyCashfreeWebhookSignature(rawBody, timestamp, signature)) {
-    return apiError(400, "webhook_signature_invalid", "Signature verification failed.")
+    return apiError(
+      400,
+      "webhook_signature_invalid",
+      "Signature verification failed."
+    )
   }
 
   const body = JSON.parse(rawBody) as CashfreeWebhookPayload
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((body.data as any).test_object) {
+    // This is test call
+    return NextResponse.json({ received: true })
+  }
+
+  console.log(body.data)
+
   const cashfreeOrderId = body.data.order.order_id
 
-  const [order] = await db.select().from(orders).where(eq(orders.cashfreeOrderId, cashfreeOrderId))
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.cashfreeOrderId, cashfreeOrderId))
   if (!order) {
     // Unknown order — ack anyway so Cashfree doesn't retry indefinitely.
     return NextResponse.json({ received: true })
@@ -48,12 +69,18 @@ export async function POST(request: Request) {
         })
         .where(eq(orders.id, order.id))
 
-      await db.insert(orderStatusHistory).values({ orderId: order.id, status: "confirmed" })
+      await db
+        .insert(orderStatusHistory)
+        .values({ orderId: order.id, status: "confirmed" })
 
       if (order.promoCode) {
         await db
           .insert(promoRedemptions)
-          .values({ promoCode: order.promoCode, userId: order.userId, orderId: order.id })
+          .values({
+            promoCode: order.promoCode,
+            userId: order.userId,
+            orderId: order.id,
+          })
           .onConflictDoNothing({ target: promoRedemptions.orderId })
       }
 
@@ -78,7 +105,11 @@ export async function POST(request: Request) {
   } else if (body.type === "REFUND_STATUS_WEBHOOK") {
     const refund = body.data.refund
     // Idempotent: a webhook retry must not double-apply a refund.
-    if (refund && refund.refund_status === "SUCCESS" && order.status !== "refunded") {
+    if (
+      refund &&
+      refund.refund_status === "SUCCESS" &&
+      order.status !== "refunded"
+    ) {
       const refundedAmountPaise = Math.round(refund.refund_amount * 100)
 
       await db

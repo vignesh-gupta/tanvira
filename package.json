@@ -13,10 +13,9 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
-    "db:reset": "drizzle-kit reset",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx db/seed.ts",
-    "sanity:seed": "tsx sanity/seed.ts"
+    "sanity:seed": " node --env-file=.env --import tsx sanity/seed.ts"
   },
   "dependencies": {
     "@cashfreepayments/cashfree-js": "^1.0.7",
