@@ -5,10 +5,13 @@ import Link from "next/link"
 import { ShoppingBag, User } from "lucide-react"
 
 import { useCart } from "@/lib/cart/cart-context"
+import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 
 export function HeaderNav() {
   const { count } = useCart()
+  const { data: session } = authClient.useSession()
+  const isAdmin = session?.user.role === "admin"
 
   return (
     <header className="sticky top-0 z-40 bg-sidebar text-sidebar-foreground">
@@ -28,6 +31,11 @@ export function HeaderNav() {
           <Link href="/products" className="transition-colors hover:text-sidebar-primary">
             Shop
           </Link>
+          {isAdmin ? (
+            <Link href="/admin" className="transition-colors hover:text-sidebar-primary">
+              Admin
+            </Link>
+          ) : null}
         </nav>
 
         <div className="flex items-center gap-4">

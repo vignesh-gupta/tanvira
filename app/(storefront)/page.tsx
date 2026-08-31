@@ -1,8 +1,8 @@
 import Image from "next/image"
 import Link from "next/link"
 
+import { HeroCarousel } from "@/components/storefront/hero-carousel"
 import { ProductCard } from "@/components/storefront/product-card"
-import { Button } from "@/components/ui/button"
 import { sanityFetch } from "@/sanity/lib/live"
 import { ACTIVE_BANNERS_QUERY, PRODUCTS_QUERY_NEWEST } from "@/lib/sanity/queries"
 import type { Banner, PaginatedProducts } from "@/lib/sanity/types"
@@ -23,33 +23,9 @@ export default async function LandingPage() {
   const collectionBanners = collectionResult.data as unknown as Banner[]
   const { items: bestsellers } = productsResult.data as unknown as PaginatedProducts
 
-  const hero = heroBanners?.[0]
-
   return (
     <div>
-      <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-muted">
-        {hero?.image?.url ? (
-          <Image
-            src={hero.image.url}
-            alt={hero.image.alt ?? hero.headline}
-            fill
-            priority
-            className="object-cover"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
-        <div className="relative mx-auto max-w-2xl px-4 text-center text-white">
-          <h1 className="font-heading text-4xl font-medium sm:text-5xl">
-            {hero?.headline ?? "Everyday elegance, made accessible"}
-          </h1>
-          {hero?.subtext ? (
-            <p className="mt-4 text-base text-white/90">{hero.subtext}</p>
-          ) : null}
-          <Button asChild size="lg" className="mt-6">
-            <Link href={hero?.ctaLink ?? "/products"}>{hero?.ctaLabel ?? "Shop Now"}</Link>
-          </Button>
-        </div>
-      </section>
+      <HeroCarousel banners={heroBanners ?? []} />
 
       {collectionBanners && collectionBanners.length > 0 ? (
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">

@@ -1,18 +1,25 @@
 import { NextResponse } from "next/server"
 import { eq } from "drizzle-orm"
 
+import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { orderStatusHistory, orders } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { shipOrderSchema } from "@/lib/validations/order"
 
-// Called from the Sanity Studio "Ship Order" tool (sanity/tools/ship-order-tool.tsx)
-// — there's no admin role in Better Auth, so this route is gated by a
-// server-only shared secret instead (see ARCHITECTURE.md § Security Model).
+// Ships from two callers: the in-app /admin/orders dashboard (an
+// authenticated session with role "admin") and the legacy Sanity Studio
+// "Ship Order" tool (sanity/tools/ship-order-tool.tsx), which has no
+// session and is gated by a server-only shared secret instead.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const secret = request.headers.get("x-admin-secret")
-  if (!secret || secret !== process.env.ADMIN_API_SECRET) {
-    return apiError(401, "unauthorized", "Missing or invalid admin secret.")
+  const session = await auth.api.getSession({ headers: request.headers })
+  const isAdmin = session?.user.role === "admin"
+
+  if (!isAdmin) {
+    const secret = request.headers.get("x-admin-secret")
+    if (!secret || secret !== process.env.ADMIN_API_SECRET) {
+      return apiError(401, "unauthorized", "Missing or invalid admin secret.")
+    }
   }
 
   const parsed = shipOrderSchema.safeParse(await request.json())

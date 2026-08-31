@@ -12,7 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <ThemeProvider defaultTheme="light" >
+    <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <CartProvider>{children}</CartProvider>
       </QueryClientProvider>
