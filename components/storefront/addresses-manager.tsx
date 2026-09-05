@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { MapPinOff, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,86 +15,54 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useAddresses, useCreateAddress, useDeleteAddress, useUpdateAddress } from "@/lib/addresses/queries"
 
 export function AddressesManager() {
-  const [addresses, setAddresses] = useState<AddressData[] | null>(null)
+  const { data: addresses } = useAddresses()
+  const createAddress = useCreateAddress()
+  const updateAddress = useUpdateAddress()
+  const deleteAddress = useDeleteAddress()
+
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<AddressData | null>(null)
   const [deleting, setDeleting] = useState<AddressData | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
-  function reload() {
-    return fetch("/api/addresses")
-      .then((res) => res.json())
-      .then((data: { addresses: AddressData[] }) => setAddresses(data.addresses))
+  function handleAdd(values: AddressFormValues) {
+    createAddress.mutate(values, {
+      onSuccess: () => {
+        toast.success("Address added")
+        setAdding(false)
+      },
+      onError: (err) => toast.error(err.message),
+    })
   }
 
-  useEffect(() => {
-    reload()
-  }, [])
-
-  async function handleAdd(values: AddressFormValues) {
-    setSubmitting(true)
-    try {
-      const res = await fetch("/api/addresses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        toast.error(data.error?.message ?? "Couldn't save the address")
-        return
-      }
-      toast.success("Address added")
-      setAdding(false)
-      await reload()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleEdit(values: AddressFormValues) {
+  function handleEdit(values: AddressFormValues) {
     if (!editing) return
-    setSubmitting(true)
-    try {
-      const res = await fetch(`/api/addresses/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        toast.error(data.error?.message ?? "Couldn't update the address")
-        return
-      }
-      toast.success("Address updated")
-      setEditing(null)
-      await reload()
-    } finally {
-      setSubmitting(false)
-    }
+    updateAddress.mutate(
+      { id: editing.id, values },
+      {
+        onSuccess: () => {
+          toast.success("Address updated")
+          setEditing(null)
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    )
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return
-    setSubmitting(true)
-    try {
-      const res = await fetch(`/api/addresses/${deleting.id}`, { method: "DELETE" })
-      if (!res.ok) {
-        const data = await res.json()
-        toast.error(data.error?.message ?? "Couldn't delete the address")
-        return
-      }
-      toast.success("Address deleted")
-      setDeleting(null)
-      await reload()
-    } finally {
-      setSubmitting(false)
-    }
+    deleteAddress.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success("Address deleted")
+        setDeleting(null)
+      },
+      onError: (err) => toast.error(err.message),
+    })
   }
 
-  if (addresses === null) {
+  if (addresses === undefined) {
     return <p className="text-sm text-muted-foreground">Loading your addresses…</p>
   }
 
@@ -139,7 +107,12 @@ export function AddressesManager() {
       )}
 
       {adding ? (
-        <AddressForm submitLabel="Save address" submitting={submitting} onSubmit={handleAdd} onCancel={() => setAdding(false)} />
+        <AddressForm
+          submitLabel="Save address"
+          submitting={createAddress.isPending}
+          onSubmit={handleAdd}
+          onCancel={() => setAdding(false)}
+        />
       ) : (
         <Button variant="outline" className="w-full" onClick={() => setAdding(true)}>
           + Add a new address
@@ -155,7 +128,7 @@ export function AddressesManager() {
             <AddressForm
               initialValue={{ ...editing, line2: editing.line2 ?? undefined }}
               submitLabel="Save changes"
-              submitting={submitting}
+              submitting={updateAddress.isPending}
               onSubmit={handleEdit}
               onCancel={() => setEditing(null)}
             />
@@ -172,8 +145,8 @@ export function AddressesManager() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
-              {submitting ? "Deleting…" : "Delete address"}
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteAddress.isPending}>
+              {deleteAddress.isPending ? "Deleting…" : "Delete address"}
             </Button>
           </DialogFooter>
         </DialogContent>

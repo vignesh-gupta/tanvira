@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatusBadge, type OrderStatus } from "@/components/storefront/status-badge"
 import { formatOrderNumber, formatRupees } from "@/lib/format"
+import { useShipOrder } from "@/lib/orders/queries"
 
 type OrderRow = {
   id: string
@@ -110,31 +111,21 @@ function ShipOrderDialog({
   onShipped: () => void
 }) {
   const [trackingUrl, setTrackingUrl] = useState("")
-  const [submitting, setSubmitting] = useState(false)
+  const shipOrder = useShipOrder()
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!order) return
-    setSubmitting(true)
-    try {
-      const res = await fetch(`/api/orders/${order.id}/ship`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingUrl: trackingUrl.trim() }),
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        toast.error(data.error?.message ?? "Couldn't ship the order.")
-        return
-      }
-      toast.success(`Order ${formatOrderNumber(order.orderSeq)} marked as shipped.`)
-      setTrackingUrl("")
-      onShipped()
-    } catch {
-      toast.error("Network error — please retry.")
-    } finally {
-      setSubmitting(false)
-    }
+    shipOrder.mutate(
+      { orderId: order.id, trackingUrl: trackingUrl.trim() },
+      {
+        onSuccess: () => {
+          toast.success(`Order ${formatOrderNumber(order.orderSeq)} marked as shipped.`)
+          setTrackingUrl("")
+          onShipped()
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    )
   }
 
   return (
@@ -159,9 +150,9 @@ function ShipOrderDialog({
         <DialogFooter>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || trackingUrl.trim().length === 0}
+            disabled={shipOrder.isPending || trackingUrl.trim().length === 0}
           >
-            {submitting ? "Shipping…" : "Mark as shipped"}
+            {shipOrder.isPending ? "Shipping…" : "Mark as shipped"}
           </Button>
         </DialogFooter>
       </DialogContent>

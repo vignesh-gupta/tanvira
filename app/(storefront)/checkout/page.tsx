@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js"
 import { Loader2, Plus } from "lucide-react"
 import { toast } from "sonner"
 
-import { AddressCard, type AddressData } from "@/components/storefront/address-card"
+import { AddressCard } from "@/components/storefront/address-card"
 import { AddressForm, type AddressFormValues } from "@/components/storefront/address-form"
 import { CheckoutSteps } from "@/components/storefront/checkout-steps"
 import { PromoCodeInput } from "@/components/storefront/promo-code-input"
@@ -16,6 +16,8 @@ import { authClient } from "@/lib/auth-client"
 import { useCart } from "@/lib/cart/cart-context"
 import { usePromoStore } from "@/lib/promo/promo-store"
 import { formatRupees } from "@/lib/format"
+import { useAddresses } from "@/lib/addresses/queries"
+import { useCreateOrder } from "@/lib/orders/queries"
 
 export default function CheckoutPage() {
   const { items, subtotal } = useCart()
@@ -39,24 +41,21 @@ export default function CheckoutPage() {
   const [verifying, setVerifying] = useState(false)
 
   // Step 2 — address: saved cards + "add new" form
-  const [savedAddresses, setSavedAddresses] = useState<AddressData[] | null>(null)
+  const { data: savedAddresses } = useAddresses({ enabled: step === 2 })
   const [selectedAddressId, setSelectedAddressId] = useState<string | "new">("new")
   const [newAddress, setNewAddress] = useState<AddressFormValues | null>(null)
+  const appliedDefaultAddress = useRef(false)
 
   useEffect(() => {
-    if (step !== 2 || savedAddresses !== null) return
-    fetch("/api/addresses")
-      .then((res) => res.json())
-      .then((data: { addresses: AddressData[] }) => {
-        setSavedAddresses(data.addresses)
-        const preferred = data.addresses.find((a) => a.isDefault) ?? data.addresses[0]
-        setSelectedAddressId(preferred ? preferred.id : "new")
-      })
-      .catch(() => setSavedAddresses([]))
-  }, [step, savedAddresses])
+    if (!savedAddresses || appliedDefaultAddress.current) return
+    appliedDefaultAddress.current = true
+    const preferred = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0]
+    setSelectedAddressId(preferred ? preferred.id : "new")
+  }, [savedAddresses])
 
   // Step 3 — payment (promo is shared global state — see lib/promo/promo-store.ts)
-  const [paying, setPaying] = useState(false)
+  const createOrder = useCreateOrder()
+  const paying = createOrder.isPending
 
   const discount = promo?.discountAmount ?? 0
   const total = Math.max(subtotal - discount, 0)
@@ -106,47 +105,35 @@ export default function CheckoutPage() {
     }
   }
 
-  async function handlePay() {
-    setPaying(true)
-    try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: items.map((i) => ({
-            productId: i.productId,
-            name: i.name,
-            price: i.price,
-            qty: i.qty,
-          })),
-          promoCode: promo?.code,
-          ...(selectedAddressId !== "new"
-            ? { addressId: selectedAddressId }
-            : { shippingAddress: newAddress }),
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        toast.error(data.error?.message ?? "Couldn't create the order")
-        setPaying(false)
-        return
-      }
-
-      const { paymentSessionId } = await res.json()
-
-      // Cart is cleared on the confirmation page once payment is actually
-      // confirmed, not here — the browser is about to leave for Cashfree's
-      // hosted checkout page and may come straight back on a failed/dropped
-      // payment (see components/storefront/order-confirmation.tsx).
-      const cashfree = await loadCashfree({
-        mode: (process.env.NEXT_PUBLIC_CASHFREE_ENV as "sandbox" | "production") ?? "sandbox",
-      })
-      cashfree.checkout({ paymentSessionId, redirectTarget: "_self" })
-    } catch {
-      toast.error("Something went wrong starting payment — please retry")
-      setPaying(false)
-    }
+  function handlePay() {
+    createOrder.mutate(
+      {
+        items: items.map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          price: i.price,
+          qty: i.qty,
+        })),
+        promoCode: promo?.code,
+        ...(selectedAddressId !== "new"
+          ? { addressId: selectedAddressId }
+          : { shippingAddress: newAddress ?? undefined }),
+      },
+      {
+        onSuccess: async ({ paymentSessionId }) => {
+          // Cart is cleared on the confirmation page once payment is
+          // actually confirmed, not here — the browser is about to leave
+          // for Cashfree's hosted checkout page and may come straight back
+          // on a failed/dropped payment (see
+          // components/storefront/order-confirmation.tsx).
+          const cashfree = await loadCashfree({
+            mode: (process.env.NEXT_PUBLIC_CASHFREE_ENV as "sandbox" | "production") ?? "sandbox",
+          })
+          cashfree.checkout({ paymentSessionId, redirectTarget: "_self" })
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    )
   }
 
   if (step === null) {
@@ -198,7 +185,7 @@ export default function CheckoutPage() {
 
       {step === 2 && (
         <div className="space-y-4">
-          {savedAddresses === null ? (
+          {savedAddresses === undefined ? (
             <p className="text-sm text-muted-foreground">Loading your addresses…</p>
           ) : (
             <>
