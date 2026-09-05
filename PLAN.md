@@ -57,18 +57,18 @@ Reference: user-supplied jewelsmars.com screenshots (site itself is not reachabl
 - Trust-badge marquee strip (e.g. "COD Available — Easy Returns"): static text in the component, no CMS-driven content.
 
 TASKS:
-- [ ] `sanity/schemaTypes/product.ts` — add optional `compareAtPrice` field (number, must be greater than `price` when set)
-- [ ] Header — compact mobile pattern: hamburger menu, centered logo, cart icon with count badge (no search icon); keep desktop simple rather than stretching the mobile layout
-- [ ] Add the fixed bottom tab bar (Home / Shop / Cart / Account) as a persistent mobile-viewport nav element, replacing/supplementing the current header nav's role
-- [ ] Add a trust-badge marquee strip below the header (static copy)
-- [ ] Redesign landing hero ([components/storefront/hero-carousel.tsx](components/storefront/hero-carousel.tsx)) — full-bleed mobile-first treatment, sourced from `banner` documents with `placement: "hero"`
-- [ ] Add a homepage "collection tiles" section sourced from `banner` documents with `placement: "collection"`
-- [ ] Redesign PLP grid ([app/(storefront)/products/page.tsx](app/(storefront)/products/page.tsx), [components/storefront/product-card.tsx](components/storefront/product-card.tsx)) — mobile grid density first; product card shows strikethrough `compareAtPrice` + discount badge when set, no wishlist icon, no EMI text
-- [ ] Add a "View all" outlined-pill link pattern where a rail/grid links to the full PLP
-- [ ] Redesign PDP ([app/(storefront)/products/[slug]/page.tsx](app/(storefront)/products/[slug]/page.tsx))
-- [ ] Redesign cart ([app/(storefront)/cart/page.tsx](app/(storefront)/cart/page.tsx), [components/storefront/cart-line-item.tsx](components/storefront/cart-line-item.tsx))
-- [ ] Redesign the reworked checkout from Phase 2 to match
-- [ ] Restyle the account section (Phase 2's `account/orders` + new `account/addresses`) as a list-with-icons pattern (Overview / My Orders / My Address), matching the reference's account page layout
-- [ ] Add a static FAQ accordion section (hardcoded copy)
-- [ ] Restyle the footer to match the reference's structure (About / Quick Links / Store Policy columns) using only existing links (legal pages, existing WhatsApp link) — no newsletter signup
-- [ ] Verify each page mobile-first (~390px) via the browser preview tool, then confirm desktop (≥1024px) still holds up, against the theme tokens in [app/globals.css](app/globals.css)
+- [x] `sanity/schemaTypes/product.ts` — added optional `compareAtPrice` field (number, custom-validated to be greater than `price` when set); propagated through `productCardFields`/`PRODUCT_BY_SLUG_QUERY` in [lib/sanity/queries.ts](lib/sanity/queries.ts)
+- [x] Header ([components/storefront/header-nav.tsx](components/storefront/header-nav.tsx)) — compact mobile pattern: hamburger menu (Shop / Admin / Log out — Home/Cart/Account live in the bottom nav) with a centered logo and cart icon w/ badge; desktop keeps the previous inline nav + avatar dropdown, no search icon anywhere
+- [x] Added [components/storefront/bottom-nav.tsx](components/storefront/bottom-nav.tsx) — fixed Home/Shop/Cart/Account tab bar, mobile-only (`sm:hidden`), wired into [app/(storefront)/layout.tsx](app/(storefront)/layout.tsx) with `pb-16` on `<main>` so content isn't hidden behind it
+- [x] Added [components/storefront/trust-marquee.tsx](components/storefront/trust-marquee.tsx) (static copy, CSS marquee keyframe in [app/globals.css](app/globals.css), respects `prefers-reduced-motion`)
+- [x] Redesigned landing hero ([components/storefront/hero-carousel.tsx](components/storefront/hero-carousel.tsx)) — shorter min-height on mobile (`min-h-[60vh] sm:min-h-[70vh]`), still full-bleed and sourced from `hero`-placement banners
+- [x] Added a "Shop by Trend" homepage tiles section ([app/(storefront)/page.tsx](app/(storefront)/page.tsx)) — horizontal-scroll rounded tiles on mobile, grid on desktop, sourced from `collection`-placement banners
+- [x] Redesigned PLP grid and [components/storefront/product-card.tsx](components/storefront/product-card.tsx) — tighter mobile gap/padding, discount badge + strikethrough `compareAtPrice` when set, no wishlist icon, no EMI text
+- [x] Added [components/storefront/view-all-pill.tsx](components/storefront/view-all-pill.tsx) — outlined pill with arrow, used on the homepage Bestsellers section
+- [x] Redesigned PDP ([app/(storefront)/products/[slug]/page.tsx](app/(storefront)/products/[slug]/page.tsx)) — discount badge/strikethrough price, tightened mobile spacing
+- [x] Redesigned cart ([app/(storefront)/cart/page.tsx](app/(storefront)/cart/page.tsx), [components/storefront/cart-line-item.tsx](components/storefront/cart-line-item.tsx)) — mobile-first spacing/rounding polish
+- [x] Restyled the Phase 2 checkout to match (padding/rounding consistency; no logic changes)
+- [x] Restyled the account section as a list-with-icons pattern ([components/storefront/account-nav.tsx](components/storefront/account-nav.tsx): Overview / My Orders / My Addresses, each with an icon and chevron)
+- [x] Added a static FAQ accordion ([components/storefront/faq-accordion.tsx](components/storefront/faq-accordion.tsx), hardcoded copy, shadcn Accordion) on the homepage
+- [x] Restyled the footer ([components/storefront/footer.tsx](components/storefront/footer.tsx)) — About / Quick Links / Store Policy columns, existing links only
+- [x] Verified mobile-first (~390px, screenshot-checked) and desktop (1280px) for home, PLP, PDP, cart, checkout, and all three account pages; verified the discount-badge "with data" state by temporarily publishing a `compareAtPrice` on a real Sanity product and reverting afterward. **Known tooling limitation:** this session's browser tool hangs on click/type actions under viewport widths below 768px (mobile touch-emulation), even for plain links unrelated to any change here — so the mobile-only hamburger menu's dropdown open/close was verified structurally (correct button/aria attributes, identical `DropdownMenu` primitive already proven interactive via the desktop avatar dropdown) rather than by an actual mobile click. Worth a manual tap-test on a real device.

@@ -4,7 +4,6 @@ import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/lib/cart/cart-context"
 import { formatRupees } from "@/lib/format"
 
@@ -13,6 +12,7 @@ export interface ProductCardData {
   name: string
   slug: string
   price: number // paise
+  compareAtPrice?: number | null // paise
   images: { url: string; alt?: string }[]
   isBundle?: boolean
   stock: number
@@ -22,6 +22,10 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   const { addItem } = useCart()
   const image = product.images?.[0]
   const outOfStock = product.stock <= 0
+  const hasDiscount = !!product.compareAtPrice && product.compareAtPrice > product.price
+  const discountPercent = hasDiscount
+    ? Math.round((1 - product.price / product.compareAtPrice!) * 100)
+    : 0
 
   function handleQuickAdd(e: React.MouseEvent) {
     e.preventDefault()
@@ -41,7 +45,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group block overflow-hidden rounded-lg bg-card shadow-sm transition-shadow duration-200 hover:shadow-md"
+      className="group block overflow-hidden rounded-xl bg-card shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
         {image ? (
@@ -54,26 +58,40 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           />
         ) : null}
 
-        {product.isBundle && (
-          <Badge className="absolute top-3 left-3 bg-secondary text-secondary-foreground">
-            BUNDLE
-          </Badge>
-        )}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {hasDiscount ? (
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+              {discountPercent}% OFF
+            </span>
+          ) : null}
+          {product.isBundle ? (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+              BUNDLE
+            </span>
+          ) : null}
+        </div>
 
         <button
           type="button"
           onClick={handleQuickAdd}
           disabled={outOfStock}
           aria-label={`Add ${product.name} to cart`}
-          className="absolute right-3 bottom-3 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-md transition-all duration-150 hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="absolute right-2 bottom-2 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-md transition-all duration-150 hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {outOfStock ? "Sold out" : "ADD"}
         </button>
       </div>
 
-      <div className="p-3">
-        <p className="truncate text-sm text-foreground">{product.name}</p>
-        <p className="mt-1 text-sm font-medium text-primary">{formatRupees(product.price)}</p>
+      <div className="p-2.5 sm:p-3">
+        <p className="truncate text-xs text-foreground sm:text-sm">{product.name}</p>
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <p className="text-sm font-medium text-primary">{formatRupees(product.price)}</p>
+          {hasDiscount ? (
+            <p className="text-xs text-muted-foreground line-through">
+              {formatRupees(product.compareAtPrice!)}
+            </p>
+          ) : null}
+        </div>
       </div>
     </Link>
   )

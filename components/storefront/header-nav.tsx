@@ -3,7 +3,15 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LayoutDashboard, LogOut, MapPinned, ShoppingBag, User, UserRound } from "lucide-react"
+import {
+  LayoutDashboard,
+  LogOut,
+  MapPinned,
+  Menu,
+  ShoppingBag,
+  User,
+  UserRound,
+} from "lucide-react"
 
 import { useCart } from "@/lib/cart/cart-context"
 import { authClient } from "@/lib/auth-client"
@@ -32,10 +40,51 @@ export function HeaderNav() {
   const displayName = session?.user.name || session?.user.email || ""
   const initial = displayName.charAt(0).toUpperCase()
 
+  const cartBadge = (
+    <span
+      className={cn(
+        "absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-sidebar-primary text-[10px] font-medium text-sidebar-primary-foreground transition-transform duration-150",
+        count > 0 ? "scale-100" : "scale-0",
+      )}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  )
+
   return (
     <header className="sticky top-0 z-40 bg-sidebar text-sidebar-foreground">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
+        {/* Mobile: hamburger menu (Shop / Admin / Log out — Home, Cart, Account
+            live in the bottom tab bar so they're not duplicated here). */}
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label="Open menu" className="outline-none sm:hidden">
+            <Menu className="size-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem asChild>
+              <Link href="/products">Shop</Link>
+            </DropdownMenuItem>
+            {isAdmin ? (
+              <DropdownMenuItem asChild>
+                <Link href="/admin">
+                  <LayoutDashboard />
+                  Admin Dashboard
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {session?.user ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                  <LogOut />
+                  Log out
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Link href="/" className="flex items-center gap-2 sm:static absolute left-1/2 -translate-x-1/2 sm:translate-x-0">
           <Image
             src="/logo.jpg"
             alt="Tanvira"
@@ -58,72 +107,67 @@ export function HeaderNav() {
         </nav>
 
         <div className="flex items-center gap-4">
-          {isPending ? null : session?.user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label={`Account, signed in as ${displayName}`}
-                className="outline-none"
+          <div className="hidden sm:block">
+            {isPending ? null : session?.user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={`Account, signed in as ${displayName}`}
+                  className="outline-none"
+                >
+                  <Avatar className="bg-sidebar-primary text-sidebar-primary-foreground">
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                      {initial}
+                    </AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {isAdmin ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
+                          <LayoutDashboard />
+                          Admin Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  ) : null}
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/profile">
+                      <UserRound />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/orders">
+                      <MapPinned />
+                      Orders &amp; Addresses
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                    <LogOut />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link
+                href="/login"
+                aria-label="Login"
+                className="transition-colors hover:text-sidebar-primary"
               >
-                <Avatar className="bg-sidebar-primary text-sidebar-primary-foreground">
-                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                    {initial}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {isAdmin ? (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin">
-                        <LayoutDashboard />
-                        Admin Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                ) : null}
-                <DropdownMenuItem asChild>
-                  <Link href="/account/profile">
-                    <UserRound />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/account/orders">
-                    <MapPinned />
-                    Orders &amp; Addresses
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-                  <LogOut />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Link
-              href="/login"
-              aria-label="Login"
-              className="transition-colors hover:text-sidebar-primary"
-            >
-              <User className="size-5" />
-            </Link>
-          )}
+                <User className="size-5" />
+              </Link>
+            )}
+          </div>
           <Link
             href="/cart"
             aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
             className="relative transition-colors hover:text-sidebar-primary"
           >
             <ShoppingBag className="size-5" />
-            <span
-              className={cn(
-                "absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-sidebar-primary text-[10px] font-medium text-sidebar-primary-foreground transition-transform duration-150",
-                count > 0 ? "scale-100" : "scale-0",
-              )}
-            >
-              {count > 9 ? "9+" : count}
-            </span>
+            {cartBadge}
           </Link>
         </div>
       </div>

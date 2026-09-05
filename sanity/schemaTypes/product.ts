@@ -71,6 +71,22 @@ export const product = defineType({
       validation: (Rule) => Rule.required().positive(),
     }),
     defineField({
+      name: 'compareAtPrice',
+      title: 'Compare-at price (INR)',
+      description:
+        'Optional original/MRP price shown struck through with a discount badge, e.g. 1999. Leave blank when there is no discount.',
+      type: 'number',
+      validation: (Rule) =>
+        Rule.positive().custom((value, context) => {
+          if (value === undefined) return true
+          const price = (context.document as {price?: number})?.price
+          if (typeof price === 'number' && value <= price) {
+            return 'Compare-at price must be greater than the price.'
+          }
+          return true
+        }),
+    }),
+    defineField({
       name: 'category',
       title: 'Category',
       type: 'reference',

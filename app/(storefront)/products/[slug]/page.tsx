@@ -28,11 +28,16 @@ export default async function ProductDetailPage({
     : null
   const related = (relatedResult?.data as unknown as ProductCardData[] | undefined) ?? []
 
+  const hasDiscount = !!product.compareAtPrice && product.compareAtPrice > product.price
+  const discountPercent = hasDiscount
+    ? Math.round((1 - product.price / product.compareAtPrice!) * 100)
+    : 0
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="grid gap-8 sm:grid-cols-2">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
         <div className="space-y-2">
-          <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
             {product.images?.[0]?.url ? (
               <Image
                 src={product.images[0].url}
@@ -42,6 +47,11 @@ export default async function ProductDetailPage({
                 sizes="(min-width: 640px) 50vw, 100vw"
                 className="object-cover"
               />
+            ) : null}
+            {hasDiscount ? (
+              <span className="absolute top-3 left-3 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+                {discountPercent}% OFF
+              </span>
             ) : null}
           </div>
           {product.images && product.images.length > 1 ? (
@@ -59,8 +69,15 @@ export default async function ProductDetailPage({
         </div>
 
         <div>
-          <h1 className="font-heading text-2xl">{product.name}</h1>
-          <p className="mt-2 text-lg font-medium text-primary">{formatRupees(product.price)}</p>
+          <h1 className="font-heading text-xl sm:text-2xl">{product.name}</h1>
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="text-lg font-medium text-primary">{formatRupees(product.price)}</p>
+            {hasDiscount ? (
+              <p className="text-sm text-muted-foreground line-through">
+                {formatRupees(product.compareAtPrice!)}
+              </p>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {product.stock > 0 ? "In stock" : "Out of stock"}
           </p>
@@ -96,9 +113,9 @@ export default async function ProductDetailPage({
       </div>
 
       {related && related.length > 0 ? (
-        <section className="mt-16">
-          <h2 className="mb-6 font-heading text-xl">You may also like</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <section className="mt-12 sm:mt-16">
+          <h2 className="mb-4 font-heading text-lg sm:mb-6 sm:text-xl">You may also like</h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
             {related.map((item: ProductCardData) => (
               <ProductCard key={item.id} product={item} />
             ))}

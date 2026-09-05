@@ -73,7 +73,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
 
 function HeroSlide({ banner }: { banner: Banner }) {
   return (
-    <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-muted">
+    <section className="relative flex min-h-[60vh] items-center justify-center overflow-hidden bg-muted sm:min-h-[70vh]">
       {banner.image?.url ? (
         <Image
           src={banner.image.url}

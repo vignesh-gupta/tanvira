@@ -31,7 +31,7 @@ export function AddressCard({
       type={onSelect ? "button" : undefined}
       onClick={onSelect}
       className={cn(
-        "w-full rounded-lg border p-4 text-left text-sm transition-colors",
+        "w-full rounded-xl border p-4 text-left text-sm transition-colors",
         onSelect && "cursor-pointer hover:border-primary/50",
         selected ? "border-primary bg-primary/5" : "border-border",
       )}

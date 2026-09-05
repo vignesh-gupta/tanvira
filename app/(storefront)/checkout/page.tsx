@@ -149,11 +149,11 @@ export default function CheckoutPage() {
   }
 
   if (step === null) {
-    return <div className="mx-auto max-w-md px-4 py-8 sm:px-6" />
+    return <div className="mx-auto max-w-md px-4 py-6 sm:px-6 sm:py-8" />
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-md px-4 py-6 sm:px-6 sm:py-8">
       <CheckoutSteps currentStep={step} onStepClick={(s) => !paying && s === 2 && setStep(2)} />
 
       {step === 1 && (

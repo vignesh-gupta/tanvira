@@ -32,17 +32,17 @@ export default function CartPage() {
   const total = Math.max(subtotal - discount, 0)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <h1 className="mb-6 font-heading text-2xl">Your Cart</h1>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <h1 className="mb-4 font-heading text-xl sm:mb-6 sm:text-2xl">Your Cart</h1>
 
-      <div className="grid gap-8 sm:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
         <div className="sm:col-span-2">
           {items.map((item) => (
             <CartLineItemRow key={item.productId} item={item} />
           ))}
         </div>
 
-        <div className="space-y-4 rounded-lg border border-border p-4 sm:col-span-1">
+        <div className="space-y-4 rounded-xl border border-border p-4 sm:col-span-1">
           <PromoCodeInput cartTotal={subtotal} onApplied={setPromo} />
 
           <div className="space-y-1.5 border-t border-border pt-4 text-sm">

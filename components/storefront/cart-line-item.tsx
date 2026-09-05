@@ -10,8 +10,8 @@ export function CartLineItemRow({ item }: { item: CartItem }) {
   const { updateQty, removeItem } = useCart()
 
   return (
-    <div className="flex gap-4 border-b border-border py-4 last:border-0">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-md bg-muted">
+    <div className="flex gap-3 border-b border-border py-4 last:border-0 sm:gap-4">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
         {item.image ? (
           <Image src={item.image} alt={item.name} fill className="object-cover" />
         ) : null}
