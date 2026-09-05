@@ -16,10 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatusBadge, type OrderStatus } from "@/components/storefront/status-badge"
-import { formatRupees } from "@/lib/format"
+import { formatOrderNumber, formatRupees } from "@/lib/format"
 
 type OrderRow = {
   id: string
+  orderSeq: number
   status: OrderStatus
   total: number
   trackingUrl: string | null
@@ -49,7 +50,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="font-mono text-xs">{order.id.slice(0, 8)}</TableCell>
+                <TableCell className="font-mono text-xs">{formatOrderNumber(order.orderSeq)}</TableCell>
                 <TableCell>
                   <div className="text-sm font-medium">{order.customerName}</div>
                   <div className="text-xs text-muted-foreground">{order.customerEmail}</div>
@@ -126,7 +127,7 @@ function ShipOrderDialog({
         toast.error(data.error?.message ?? "Couldn't ship the order.")
         return
       }
-      toast.success(`Order ${order.id.slice(0, 8)} marked as shipped.`)
+      toast.success(`Order ${formatOrderNumber(order.orderSeq)} marked as shipped.`)
       setTrackingUrl("")
       onShipped()
     } catch {
@@ -140,7 +141,7 @@ function ShipOrderDialog({
     <Dialog open={order !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ship order {order?.id.slice(0, 8)}</DialogTitle>
+          <DialogTitle>Ship order {order ? formatOrderNumber(order.orderSeq) : ""}</DialogTitle>
           <DialogDescription>
             A tracking URL is required — it&apos;s shown to the customer on their order status
             page.

@@ -95,7 +95,7 @@ export async function POST(request: Request) {
           to: customer.email,
           subject: "Your Tanvira order is confirmed",
           react: OrderConfirmationEmail({
-            orderId: order.id,
+            orderNumber: order.orderSeq,
             items: order.items,
             total: order.total,
           }),

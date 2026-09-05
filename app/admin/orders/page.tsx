@@ -8,6 +8,7 @@ export default async function AdminOrdersPage() {
   const rows = await db
     .select({
       id: orders.id,
+      orderSeq: orders.orderSeq,
       status: orders.status,
       total: orders.total,
       trackingUrl: orders.trackingUrl,

@@ -11,15 +11,16 @@ import {
 } from "@react-email/components"
 
 interface OrderConfirmationEmailProps {
-  orderId: string
+  orderNumber: number
   items: { name: string; qty: number; price: number }[]
   total: number // paise
 }
 
 const formatRupees = (paise: number) => `₹${(paise / 100).toFixed(2)}`
+const formatOrderNumber = (orderSeq: number) => `TVA${orderSeq}`
 
 export function OrderConfirmationEmail({
-  orderId,
+  orderNumber,
   items,
   total,
 }: OrderConfirmationEmailProps) {
@@ -44,7 +45,7 @@ export function OrderConfirmationEmail({
             Thank you for your order! We&apos;ll let you know as soon as it ships.
           </Text>
           <Text style={{ color: "#7A6A5D", fontSize: "13px" }}>
-            Order ID: {orderId}
+            Order ID: {formatOrderNumber(orderNumber)}
           </Text>
           <Hr style={{ borderColor: "#E7DCC9" }} />
           {items.map((item, i) => (

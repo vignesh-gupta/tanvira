@@ -8,6 +8,7 @@ import { addresses, orders } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { createOrderSchema } from "@/lib/validations/order"
 import { validatePromoCode } from "@/lib/promo"
+import { formatOrderNumber } from "@/lib/format"
 import { createCashfreeOrder, hasActiveHighImpactIncident } from "@/lib/payments/cashfree"
 import { createAddressForUser } from "@/lib/addresses"
 
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
         promoCode: appliedPromoCode,
         cashfreeOrderId: cfOrderId,
       })
-      .returning({ id: orders.id })
+      .returning({ id: orders.id, orderSeq: orders.orderSeq })
     insertedOrderId = order.id
 
     const { paymentSessionId } = await createCashfreeOrder({
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
         phone: address.phone,
       },
       returnUrl: `${process.env.BETTER_AUTH_URL}/orders/${order.id}/confirmation?redirected=1`,
-      note: `Tanvira order ${order.id}`,
+      note: `Tanvira order ${formatOrderNumber(order.orderSeq)}`,
     })
 
     return NextResponse.json({ orderId: order.id, paymentSessionId, total }, { status: 201 })

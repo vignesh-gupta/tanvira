@@ -8,18 +8,20 @@ import type { OrderStatus } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
 import type { OrderItem } from "@/db/schema"
 import { useCart } from "@/lib/cart/cart-context"
-import { formatRupees } from "@/lib/format"
+import { formatOrderNumber, formatRupees } from "@/lib/format"
 
 type LiveHint = "PAID" | "ACTIVE" | "EXPIRED" | "TERMINATED" | undefined
 
 export function OrderConfirmation({
   orderId,
+  orderNumber,
   initialStatus,
   liveHint,
   items,
   total,
 }: {
   orderId: string
+  orderNumber: number
   initialStatus: OrderStatus
   liveHint?: LiveHint
   items: OrderItem[]
@@ -68,7 +70,7 @@ export function OrderConfirmation({
             {confirmed
               ? "We've emailed your confirmation."
               : "We're finalizing your order — you'll get an email shortly."}{" "}
-            Order ID: <span className="font-mono">{orderId}</span>
+            Order ID: <span className="font-mono">{formatOrderNumber(orderNumber)}</span>
           </p>
         </>
       )}

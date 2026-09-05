@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { orders } from "@/db/schema"
-import { formatRupees } from "@/lib/format"
+import { formatOrderNumber, formatRupees } from "@/lib/format"
 
 export default async function OrderHistoryPage() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -46,7 +46,8 @@ export default async function OrderHistoryPage() {
             className="flex items-center justify-between p-4 transition-colors hover:bg-muted"
           >
             <div>
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium">{formatOrderNumber(order.orderSeq)}</p>
+              <p className="text-xs text-muted-foreground">
                 {new Date(order.createdAt).toLocaleDateString("en-IN", {
                   day: "numeric",
                   month: "short",

@@ -8,6 +8,7 @@ import {
   timestamp,
   jsonb,
   uniqueIndex,
+  serial,
 } from "drizzle-orm/pg-core"
 
 import * as authSchema from "./auth-schema"
@@ -71,6 +72,10 @@ export const addresses = pgTable("addresses", {
  */
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // Short, scalable, human-facing order number — display as `TVA${orderSeq}`
+  // via formatOrderNumber() (lib/format.ts). The UUID above stays the real
+  // primary key/FK target; this is purely a display sequence.
+  orderSeq: serial("order_seq").notNull().unique(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "restrict" }),

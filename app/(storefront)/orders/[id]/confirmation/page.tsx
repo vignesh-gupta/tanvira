@@ -31,6 +31,7 @@ export default async function OrderConfirmationPage({
   return (
     <OrderConfirmation
       orderId={order.id}
+      orderNumber={order.orderSeq}
       initialStatus={order.status}
       liveHint={liveHint}
       items={order.items}

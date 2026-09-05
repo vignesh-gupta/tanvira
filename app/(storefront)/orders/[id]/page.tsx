@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { OrderStatusTimeline } from "@/components/storefront/order-status-timeline"
 import { StatusBadge } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
-import { formatRupees } from "@/lib/format"
+import { formatOrderNumber, formatRupees } from "@/lib/format"
 import { getOrderWithTimeline } from "@/lib/orders"
 
 export default async function OrderStatusPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,10 +15,13 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ id
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h1 className="font-heading text-2xl">Order Status</h1>
         <StatusBadge status={order.status} />
       </div>
+      <p className="mb-6 font-mono text-sm text-muted-foreground">
+        Order {formatOrderNumber(order.orderSeq)}
+      </p>
 
       <div className="mb-8 rounded-lg border border-border p-6">
         <OrderStatusTimeline status={order.status} />
