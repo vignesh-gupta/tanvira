@@ -97,6 +97,9 @@ export async function POST(request: Request) {
           react: OrderConfirmationEmail({
             orderNumber: order.orderSeq,
             items: order.items,
+            subtotal: order.subtotal,
+            discount: order.discount,
+            promoCode: order.promoCode,
             total: order.total,
           }),
         })

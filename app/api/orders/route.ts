@@ -8,7 +8,7 @@ import { addresses, orders } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { createOrderSchema } from "@/lib/validations/order"
 import { validatePromoCode } from "@/lib/promo"
-import { formatOrderNumber } from "@/lib/format"
+import { formatOrderNumber, formatRupees } from "@/lib/format"
 import { createCashfreeOrder, hasActiveHighImpactIncident } from "@/lib/payments/cashfree"
 import { createAddressForUser } from "@/lib/addresses"
 
@@ -97,7 +97,10 @@ export async function POST(request: Request) {
         phone: address.phone,
       },
       returnUrl: `${process.env.BETTER_AUTH_URL}/orders/${order.id}/confirmation?redirected=1`,
-      note: `Tanvira order ${formatOrderNumber(order.orderSeq)}`,
+      note:
+        discount > 0
+          ? `Tanvira order ${formatOrderNumber(order.orderSeq)} — Subtotal ${formatRupees(subtotal)}, Discount ${formatRupees(discount)} (${appliedPromoCode}), Total ${formatRupees(total)}`
+          : `Tanvira order ${formatOrderNumber(order.orderSeq)}`,
     })
 
     return NextResponse.json({ orderId: order.id, paymentSessionId, total }, { status: 201 })

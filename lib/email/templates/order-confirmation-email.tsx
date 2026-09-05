@@ -13,6 +13,9 @@ import {
 interface OrderConfirmationEmailProps {
   orderNumber: number
   items: { name: string; qty: number; price: number }[]
+  subtotal: number // paise
+  discount: number // paise
+  promoCode?: string | null
   total: number // paise
 }
 
@@ -22,6 +25,9 @@ const formatOrderNumber = (orderSeq: number) => `TVA${orderSeq}`
 export function OrderConfirmationEmail({
   orderNumber,
   items,
+  subtotal,
+  discount,
+  promoCode,
   total,
 }: OrderConfirmationEmailProps) {
   return (
@@ -56,6 +62,14 @@ export function OrderConfirmationEmail({
             </Section>
           ))}
           <Hr style={{ borderColor: "#E7DCC9" }} />
+          <Text style={{ color: "#2A1015", fontSize: "14px", margin: "0 0 4px" }}>
+            Subtotal: {formatRupees(subtotal)}
+          </Text>
+          {discount > 0 ? (
+            <Text style={{ color: "#2A7A4A", fontSize: "14px", margin: "0 0 4px" }}>
+              Discount{promoCode ? ` (${promoCode})` : ""}: -{formatRupees(discount)}
+            </Text>
+          ) : null}
           <Text style={{ color: "#5B0E22", fontSize: "16px", fontWeight: 600 }}>
             Total: {formatRupees(total)}
           </Text>

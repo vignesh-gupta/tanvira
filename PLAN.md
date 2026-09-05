@@ -50,7 +50,7 @@ GOAL: The order confirmation email shows Subtotal, Discount (with promo code) wh
 UNTIL: A test order with a promo shows Subtotal/Discount(with code)/Total in the email; an order with no promo shows just Subtotal/Total; the Cashfree order note contains the same breakdown.
 
 TASKS:
-- [ ] `lib/email/templates/order-confirmation-email.tsx` — add `subtotal`/`discount`/`promoCode` props and render the breakdown
-- [ ] `app/api/webhooks/cashfree/route.ts` — forward `order.subtotal`/`order.discount`/`order.promoCode` into the email
-- [ ] `app/api/orders/route.ts` — enrich the Cashfree `note` string with the same breakdown (no structured field exists on Cashfree's side)
-- [ ] Verified via a real test order with a promo code
+- [x] [lib/email/templates/order-confirmation-email.tsx](lib/email/templates/order-confirmation-email.tsx) — added `subtotal`/`discount`/`promoCode` props; renders Subtotal always, a green Discount line (with promo code) only when `discount > 0`, then Total
+- [x] [app/api/webhooks/cashfree/route.ts](app/api/webhooks/cashfree/route.ts) — forwards `order.subtotal`/`order.discount`/`order.promoCode` into the email
+- [x] [app/api/orders/route.ts](app/api/orders/route.ts) — Cashfree `note` now includes the same Subtotal/Discount/Total breakdown when a promo applies (e.g. `Tanvira order TVA100005 — Subtotal ₹1,999, Discount ₹100 (WELCOME10), Total ₹1,899`, 82 chars — well under Cashfree's `order_note` limit); just the order number otherwise
+- [x] Verified by rendering the email template directly (both with and without a discount) — with-discount output correctly shows `Subtotal: ₹1999.00 / Discount (WELCOME10): -₹100.00 / Total: ₹1899.00`; no-discount output shows `Subtotal: ₹1999.00 / Total: ₹1999.00` with no empty discount line. `npx tsc --noEmit` clean, scratch verification files removed.
