@@ -19,17 +19,33 @@ export const shippingAddressSchema = z.object({
   phone: z.string().min(7).max(15),
 })
 
-export const createOrderSchema = z.object({
-  items: z.array(orderItemSchema).min(1),
-  promoCode: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .optional(),
-  shippingAddress: shippingAddressSchema,
-})
+export type ShippingAddressInput = z.infer<typeof shippingAddressSchema>
+
+export const createOrderSchema = z
+  .object({
+    items: z.array(orderItemSchema).min(1),
+    promoCode: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .optional(),
+    // Exactly one of these — an existing saved address, or a new one to
+    // save and use (see components/storefront/checkout-steps.tsx's saved
+    // address cards + add-new form).
+    addressId: z.string().uuid().optional(),
+    shippingAddress: shippingAddressSchema.optional(),
+  })
+  .refine((data) => !!data.addressId !== !!data.shippingAddress, {
+    message: "Provide either a saved addressId or a new shippingAddress, not both.",
+  })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
+
+export const upsertAddressSchema = shippingAddressSchema.extend({
+  isDefault: z.boolean().optional(),
+})
+
+export type UpsertAddressInput = z.infer<typeof upsertAddressSchema>
 
 // Tracking URL is mandatory here — an order can't be marked "shipped"
 // without one, since that's the only way the customer can follow their

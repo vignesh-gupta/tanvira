@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 import { toast } from "sonner"
 
+import { AddressCard, type AddressData } from "@/components/storefront/address-card"
+import { AddressForm, type AddressFormValues } from "@/components/storefront/address-form"
 import { CheckoutSteps } from "@/components/storefront/checkout-steps"
 import { PromoCodeInput, type AppliedPromo } from "@/components/storefront/promo-code-input"
 import { Button } from "@/components/ui/button"
@@ -14,36 +16,42 @@ import { authClient } from "@/lib/auth-client"
 import { useCart } from "@/lib/cart/cart-context"
 import { formatRupees } from "@/lib/format"
 
-type Address = {
-  line1: string
-  line2: string
-  city: string
-  state: string
-  pincode: string
-  phone: string
-}
-
 export default function CheckoutPage() {
   const { items, subtotal } = useCart()
+  const { data: session, isPending: sessionPending } = authClient.useSession()
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | null>(null)
 
-  // Step 1 — details + OTP
+  // Signed-in customers skip straight to the address step — no re-entering
+  // name/email/OTP they've already verified in a past session.
+  useEffect(() => {
+    if (sessionPending || step !== null) return
+    setStep(session ? 2 : 1)
+  }, [sessionPending, session, step])
+
+  // Step 1 — details + OTP (guests only)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [otpSent, setOtpSent] = useState(false)
   const [verifying, setVerifying] = useState(false)
 
-  // Step 2 — address
-  const [address, setAddress] = useState<Address>({
-    line1: "",
-    line2: "",
-    city: "",
-    state: "",
-    pincode: "",
-    phone: "",
-  })
+  // Step 2 — address: saved cards + "add new" form
+  const [savedAddresses, setSavedAddresses] = useState<AddressData[] | null>(null)
+  const [selectedAddressId, setSelectedAddressId] = useState<string | "new">("new")
+  const [newAddress, setNewAddress] = useState<AddressFormValues | null>(null)
+
+  useEffect(() => {
+    if (step !== 2 || savedAddresses !== null) return
+    fetch("/api/addresses")
+      .then((res) => res.json())
+      .then((data: { addresses: AddressData[] }) => {
+        setSavedAddresses(data.addresses)
+        const preferred = data.addresses.find((a) => a.isDefault) ?? data.addresses[0]
+        setSelectedAddressId(preferred ? preferred.id : "new")
+      })
+      .catch(() => setSavedAddresses([]))
+  }, [step, savedAddresses])
 
   // Step 3 — promo + payment
   const [promo, setPromo] = useState<AppliedPromo | null>(null)
@@ -51,6 +59,11 @@ export default function CheckoutPage() {
 
   const discount = promo?.discountAmount ?? 0
   const total = Math.max(subtotal - discount, 0)
+
+  function goBackToAddress() {
+    if (paying) return
+    setStep(2)
+  }
 
   // Better Auth's client returns { data, error } rather than throwing on
   // API errors — a bare try/catch never sees a failed OTP send/verify.
@@ -92,11 +105,6 @@ export default function CheckoutPage() {
     }
   }
 
-  function handleAddressSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setStep(3)
-  }
-
   async function handlePay() {
     setPaying(true)
     try {
@@ -111,7 +119,9 @@ export default function CheckoutPage() {
             qty: i.qty,
           })),
           promoCode: promo?.code,
-          shippingAddress: address,
+          ...(selectedAddressId !== "new"
+            ? { addressId: selectedAddressId }
+            : { shippingAddress: newAddress }),
         }),
       })
 
@@ -138,9 +148,13 @@ export default function CheckoutPage() {
     }
   }
 
+  if (step === null) {
+    return <div className="mx-auto max-w-md px-4 py-8 sm:px-6" />
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 py-8 sm:px-6">
-      <CheckoutSteps currentStep={step} />
+      <CheckoutSteps currentStep={step} onStepClick={(s) => !paying && s === 2 && setStep(2)} />
 
       {step === 1 && (
         <div className="space-y-4">
@@ -182,70 +196,61 @@ export default function CheckoutPage() {
       )}
 
       {step === 2 && (
-        <form onSubmit={handleAddressSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="line1">Address line 1</Label>
-            <Input
-              id="line1"
-              required
-              value={address.line1}
-              onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="line2">Address line 2 (optional)</Label>
-            <Input
-              id="line2"
-              value={address.line2}
-              onChange={(e) => setAddress({ ...address, line2: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                required
-                value={address.city}
-                onChange={(e) => setAddress({ ...address, city: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                required
-                value={address.state}
-                onChange={(e) => setAddress({ ...address, state: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pincode">PIN</Label>
-              <Input
-                id="pincode"
-                required
-                value={address.pincode}
-                onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">Phone (for delivery contact)</Label>
-            <Input
-              id="phone"
-              required
-              value={address.phone}
-              onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            Continue to Payment
-          </Button>
-        </form>
+        <div className="space-y-4">
+          {savedAddresses === null ? (
+            <p className="text-sm text-muted-foreground">Loading your addresses…</p>
+          ) : (
+            <>
+              {savedAddresses.length > 0 && selectedAddressId !== "new" ? (
+                <div className="space-y-2">
+                  {savedAddresses.map((addr) => (
+                    <AddressCard
+                      key={addr.id}
+                      address={addr}
+                      selected={selectedAddressId === addr.id}
+                      onSelect={() => setSelectedAddressId(addr.id)}
+                    />
+                  ))}
+                  <Button variant="outline" className="w-full" onClick={() => setSelectedAddressId("new")}>
+                    <Plus /> Add a new address
+                  </Button>
+                  <Button className="w-full" onClick={() => setStep(3)}>
+                    Continue to Payment
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {savedAddresses.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedAddressId(savedAddresses[0].id)}
+                    >
+                      ← Use a saved address instead
+                    </Button>
+                  ) : null}
+                  <AddressForm
+                    initialValue={newAddress ?? undefined}
+                    submitLabel="Continue to Payment"
+                    onSubmit={(values) => {
+                      setNewAddress(values)
+                      setStep(3)
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {step === 3 && (
         <div className="space-y-4">
+          <Button type="button" variant="ghost" size="sm" onClick={goBackToAddress} disabled={paying}>
+            ← Back to address
+          </Button>
+
           <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
             {items.map((item) => (
               <div key={item.productId} className="flex justify-between">

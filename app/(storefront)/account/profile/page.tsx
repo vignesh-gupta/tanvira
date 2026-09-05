@@ -8,7 +8,7 @@ export default async function ProfilePage() {
   if (!session) redirect("/login")
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+    <div className="pb-8">
       <h1 className="mb-6 font-heading text-2xl">Profile</h1>
 
       <div className="divide-y divide-border rounded-lg border border-border">

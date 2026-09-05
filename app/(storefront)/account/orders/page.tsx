@@ -24,7 +24,7 @@ export default async function OrderHistoryPage() {
 
   if (myOrders.length === 0) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-24 text-center">
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
         <PackageOpen className="size-10 text-muted-foreground" />
         <p className="text-lg text-foreground">No orders yet</p>
         <Button asChild>
@@ -35,7 +35,7 @@ export default async function OrderHistoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+    <div className="pb-8">
       <h1 className="mb-6 font-heading text-2xl">Order History</h1>
 
       <div className="divide-y divide-border rounded-lg border border-border">

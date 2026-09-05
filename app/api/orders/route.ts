@@ -9,6 +9,7 @@ import { apiError } from "@/lib/api-response"
 import { createOrderSchema } from "@/lib/validations/order"
 import { validatePromoCode } from "@/lib/promo"
 import { createCashfreeOrder, hasActiveHighImpactIncident } from "@/lib/payments/cashfree"
+import { createAddressForUser } from "@/lib/addresses"
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return apiError(400, "validation_error", parsed.error.issues[0]?.message ?? "Invalid request body.")
   }
-  const { items, promoCode, shippingAddress } = parsed.data
+  const { items, promoCode, addressId, shippingAddress } = parsed.data
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0)
 
@@ -53,10 +54,22 @@ export async function POST(request: Request) {
   let insertedOrderId: string | undefined
 
   try {
-    const [address] = await db
-      .insert(addresses)
-      .values({ userId: session.user.id, ...shippingAddress })
-      .returning({ id: addresses.id })
+    let address: { id: string; phone: string }
+    if (addressId) {
+      const [existing] = await db
+        .select()
+        .from(addresses)
+        .where(eq(addresses.id, addressId))
+        .limit(1)
+      if (!existing || existing.userId !== session.user.id) {
+        return apiError(400, "invalid_address", "Selected address not found.")
+      }
+      address = existing
+    } else {
+      // shippingAddress is guaranteed present here — createOrderSchema's
+      // refine() requires exactly one of addressId/shippingAddress.
+      address = await createAddressForUser(session.user.id, shippingAddress!)
+    }
 
     const [order] = await db
       .insert(orders)
@@ -80,7 +93,7 @@ export async function POST(request: Request) {
         id: session.user.id,
         name: session.user.name,
         email: session.user.email,
-        phone: shippingAddress.phone,
+        phone: address.phone,
       },
       returnUrl: `${process.env.BETTER_AUTH_URL}/orders/${order.id}/confirmation?redirected=1`,
       note: `Tanvira order ${order.id}`,
