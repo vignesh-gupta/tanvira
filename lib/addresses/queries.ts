@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { AddressData } from "@/components/storefront/address-card"
 import type { AddressFormValues } from "@/components/storefront/address-form"
+import { fetchJson } from "@/lib/http"
 
 export const addressKeys = {
   all: ["addresses"] as const,
 }
 
 async function fetchAddresses(): Promise<AddressData[]> {
-  const res = await fetch("/api/addresses")
-  const data = await res.json()
+  const data = await fetchJson<{ addresses: AddressData[] }>("/api/addresses")
   return data.addresses
 }
 
@@ -21,17 +21,12 @@ export function useAddresses(options?: { enabled?: boolean }) {
   })
 }
 
-async function sendAddress(url: string, method: string, body?: unknown) {
-  const res = await fetch(url, {
+function sendAddress(url: string, method: string, body?: unknown) {
+  return fetchJson(url, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    throw new Error(data.error?.message ?? "Something went wrong")
-  }
-  return data
 }
 
 export function useCreateAddress() {

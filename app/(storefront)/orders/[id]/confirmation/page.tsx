@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { OrderConfirmation } from "@/components/storefront/order-confirmation"
-import { getOrderWithTimeline } from "@/lib/orders"
+import { getOrderWithTimeline } from "@/lib/orders/db"
 import { getCashfreeOrder } from "@/lib/payments/cashfree"
 
 export default async function OrderConfirmationPage({

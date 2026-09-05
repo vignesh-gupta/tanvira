@@ -15,6 +15,12 @@ const inputStyle: React.CSSProperties = {
 // there's no admin role in Better Auth to check instead (see ARCHITECTURE.md
 // § Security Model). The secret is entered once and kept in this browser's
 // localStorage, not committed anywhere.
+//
+// This intentionally duplicates lib/orders/queries.ts's `useShipOrder`
+// (raw fetch, manual loading state, inline styles instead of Tailwind)
+// rather than reusing it: Sanity Studio mounts its own React root with no
+// access to the app's QueryClientProvider, so the react-query hook isn't
+// reachable here. If the ship-order request ever changes, update both.
 export function ShipOrderTool() {
   const [orderId, setOrderId] = useState("")
   const [trackingUrl, setTrackingUrl] = useState("")

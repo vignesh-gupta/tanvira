@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { authClient } from "@/lib/auth-client"
+import { formatDate } from "@/lib/format"
 
 type UserRow = {
   id: string
@@ -40,11 +41,7 @@ export function UsersTable({
               <TableCell className="font-medium">{user.name}</TableCell>
               <TableCell className="text-muted-foreground">{user.email}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {new Date(user.createdAt).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {formatDate(user.createdAt)}
               </TableCell>
               <TableCell>
                 <RoleSelect user={user} disabled={user.id === currentUserId} />

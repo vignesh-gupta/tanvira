@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatusBadge, type OrderStatus } from "@/components/storefront/status-badge"
-import { formatOrderNumber, formatRupees } from "@/lib/format"
+import { formatDate, formatOrderNumber, formatRupees } from "@/lib/format"
 import { useShipOrder } from "@/lib/orders/queries"
 
 type OrderRow = {
@@ -57,11 +57,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
                   <div className="text-xs text-muted-foreground">{order.customerEmail}</div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDate(order.createdAt)}
                 </TableCell>
                 <TableCell className="text-sm">{formatRupees(order.total)}</TableCell>
                 <TableCell>

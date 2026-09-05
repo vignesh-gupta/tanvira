@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { apiError } from "@/lib/api-response"
-import { validatePromoCode } from "@/lib/promo"
+import { validatePromoCode } from "@/lib/promo/db"
 import { validatePromoSchema } from "@/lib/validations/promo"
 
 export async function POST(request: Request) {

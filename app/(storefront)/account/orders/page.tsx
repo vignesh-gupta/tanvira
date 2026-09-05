@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { orders } from "@/db/schema"
-import { formatOrderNumber, formatRupees } from "@/lib/format"
+import { formatDate, formatOrderNumber, formatRupees } from "@/lib/format"
 
 export default async function OrderHistoryPage() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -42,18 +42,12 @@ export default async function OrderHistoryPage() {
         {myOrders.map((order) => (
           <Link
             key={order.id}
-            href={`/orders/TVA${order.orderSeq}`}
+            href={`/orders/${formatOrderNumber(order.orderSeq)}`}
             className="flex items-center justify-between p-4 transition-colors hover:bg-muted"
           >
             <div>
               <p className="text-sm font-medium">{formatOrderNumber(order.orderSeq)}</p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
+              <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
               <p className="text-sm text-muted-foreground">{formatRupees(order.total)}</p>
             </div>
             <StatusBadge status={order.status} />

@@ -7,7 +7,7 @@ import { db } from "@/db"
 import { addresses } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { upsertAddressSchema } from "@/lib/validations/order"
-import { createAddressForUser } from "@/lib/addresses"
+import { createAddressForUser } from "@/lib/addresses/db"
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() })

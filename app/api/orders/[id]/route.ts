@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { apiError } from "@/lib/api-response"
-import { getOrderWithTimeline } from "@/lib/orders"
+import { getOrderWithTimeline } from "@/lib/orders/db"
 
 // No session required — an order is reachable via its shareable link
 // (see API_SPEC.md § Orders). Only Order History (GET /api/orders) is

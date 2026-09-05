@@ -7,10 +7,10 @@ import { db } from "@/db"
 import { addresses, orders } from "@/db/schema"
 import { apiError } from "@/lib/api-response"
 import { createOrderSchema } from "@/lib/validations/order"
-import { validatePromoCode } from "@/lib/promo"
+import { validatePromoCode } from "@/lib/promo/db"
 import { formatOrderNumber, formatRupees } from "@/lib/format"
 import { createCashfreeOrder, hasActiveHighImpactIncident } from "@/lib/payments/cashfree"
-import { createAddressForUser } from "@/lib/addresses"
+import { createAddressForUser } from "@/lib/addresses/db"
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() })

@@ -5,7 +5,7 @@ import { OrderStatusTimeline } from "@/components/storefront/order-status-timeli
 import { StatusBadge } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
 import { formatOrderNumber, formatRupees } from "@/lib/format"
-import { getOrderWithTimelineWithOrderSeq } from "@/lib/orders"
+import { getOrderWithTimeline } from "@/lib/orders/db"
 
 export default async function OrderStatusPage({
   params,
@@ -13,7 +13,7 @@ export default async function OrderStatusPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const order = await getOrderWithTimelineWithOrderSeq(id)
+  const order = await getOrderWithTimeline(id)
 
   if (!order) notFound()
 
