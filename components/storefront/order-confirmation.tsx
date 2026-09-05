@@ -8,6 +8,7 @@ import type { OrderStatus } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
 import type { OrderItem } from "@/db/schema"
 import { useCart } from "@/lib/cart/cart-context"
+import { usePromoStore } from "@/lib/promo/promo-store"
 import { formatOrderNumber, formatRupees } from "@/lib/format"
 
 type LiveHint = "PAID" | "ACTIVE" | "EXPIRED" | "TERMINATED" | undefined
@@ -28,6 +29,7 @@ export function OrderConfirmation({
   total: number
 }) {
   const { clear } = useCart()
+  const clearPromo = usePromoStore((s) => s.clear)
 
   const confirmed = initialStatus !== "placed"
   const paymentReceived = confirmed || liveHint === "PAID"
@@ -38,8 +40,11 @@ export function OrderConfirmation({
   // now that the browser round-trips through Cashfree's hosted page, it's
   // done here instead, once we can see payment actually went through.
   useEffect(() => {
-    if (paymentReceived) clear()
-  }, [paymentReceived, clear])
+    if (paymentReceived) {
+      clear()
+      clearPromo()
+    }
+  }, [paymentReceived, clear, clearPromo])
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center sm:px-6">

@@ -32,14 +32,14 @@ GOAL: A promo applied on the cart page is still applied at checkout — no re-en
 UNTIL: Apply a promo on `/cart`, go to `/checkout` — it's still applied with the same discount, no re-entry. Visiting any storefront page with `?promo=<valid-code>` auto-applies it, and it's still applied at checkout. Completing the order clears cart + promo together. Removing the promo anywhere clears it everywhere.
 
 TASKS:
-- [ ] Add `nuqs` and `zustand` dependencies
-- [ ] `lib/promo/promo-store.ts` (new) — zustand store + `persist` middleware for `AppliedPromo | null`
-- [ ] `components/providers.tsx` — wrap in `<NuqsAdapter>`
-- [ ] `components/storefront/promo-url-sync.tsx` (new) — reads `?promo=` via nuqs, validates, writes to the store
-- [ ] `components/storefront/promo-code-input.tsx` — read/write the zustand store directly instead of local state + `onApplied` prop
-- [ ] `app/(storefront)/cart/page.tsx` + `app/(storefront)/checkout/page.tsx` — drop local `useState<AppliedPromo | null>`, read from the store
-- [ ] `components/storefront/order-confirmation.tsx` — clear the promo store alongside cart `clear()`
-- [ ] Verified end-to-end: cart → checkout persistence, and the `?promo=` URL path
+- [x] Added `nuqs` and `zustand` dependencies (via pnpm — `npm install` errored out in this environment)
+- [x] [lib/promo/promo-store.ts](lib/promo/promo-store.ts) (new) — zustand store + `persist` middleware for `AppliedPromo | null`
+- [x] [components/providers.tsx](components/providers.tsx) — wrapped in `<NuqsAdapter>`, `PromoUrlSync` mounted inside `CartProvider`
+- [x] [components/storefront/promo-url-sync.tsx](components/storefront/promo-url-sync.tsx) (new) — reads `?promo=` via nuqs, validates against the live cart subtotal, writes to the store
+- [x] [components/storefront/promo-code-input.tsx](components/storefront/promo-code-input.tsx) — reads/writes the zustand store directly instead of local state + `onApplied` prop; also re-validates the applied promo whenever `cartTotal` changes, so a promo auto-applied before the cart had items (or one that's since expired) gets its discount amount corrected instead of staying stale
+- [x] [app/(storefront)/cart/page.tsx](app/(storefront)/cart/page.tsx) + [app/(storefront)/checkout/page.tsx](app/(storefront)/checkout/page.tsx) — dropped local `useState<AppliedPromo | null>`, read from the store
+- [x] [components/storefront/order-confirmation.tsx](components/storefront/order-confirmation.tsx) — clears the promo store alongside cart `clear()`
+- [x] Verified end-to-end in the browser: visited `/products?promo=WELCOME10` with an empty cart (auto-applied at ₹0 discount), added an item, cart page re-validated to the correct -₹100 discount, signed in via OTP, and the Payment step showed `WELCOME10` already applied with the same discount — no re-entry. Test user/address/verification rows cleaned up afterward.
 
 ---
 

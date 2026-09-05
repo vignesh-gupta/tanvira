@@ -8,16 +8,18 @@ import { toast } from "sonner"
 import { AddressCard, type AddressData } from "@/components/storefront/address-card"
 import { AddressForm, type AddressFormValues } from "@/components/storefront/address-form"
 import { CheckoutSteps } from "@/components/storefront/checkout-steps"
-import { PromoCodeInput, type AppliedPromo } from "@/components/storefront/promo-code-input"
+import { PromoCodeInput } from "@/components/storefront/promo-code-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
 import { useCart } from "@/lib/cart/cart-context"
+import { usePromoStore } from "@/lib/promo/promo-store"
 import { formatRupees } from "@/lib/format"
 
 export default function CheckoutPage() {
   const { items, subtotal } = useCart()
+  const promo = usePromoStore((s) => s.promo)
   const { data: session, isPending: sessionPending } = authClient.useSession()
 
   const [step, setStep] = useState<1 | 2 | 3 | null>(null)
@@ -53,8 +55,7 @@ export default function CheckoutPage() {
       .catch(() => setSavedAddresses([]))
   }, [step, savedAddresses])
 
-  // Step 3 — promo + payment
-  const [promo, setPromo] = useState<AppliedPromo | null>(null)
+  // Step 3 — payment (promo is shared global state — see lib/promo/promo-store.ts)
   const [paying, setPaying] = useState(false)
 
   const discount = promo?.discountAmount ?? 0
@@ -262,7 +263,7 @@ export default function CheckoutPage() {
             ))}
           </div>
 
-          <PromoCodeInput cartTotal={subtotal} onApplied={setPromo} />
+          <PromoCodeInput cartTotal={subtotal} />
 
           <div className="space-y-1.5 border-t border-border pt-4 text-sm">
             <div className="flex justify-between text-muted-foreground">

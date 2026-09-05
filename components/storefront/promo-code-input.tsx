@@ -1,28 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { usePromoStore, type AppliedPromo } from "@/lib/promo/promo-store"
 
-export interface AppliedPromo {
-  code: string
-  discountAmount: number // paise
-}
+export type { AppliedPromo }
 
-export function PromoCodeInput({
-  cartTotal,
-  onApplied,
-}: {
-  cartTotal: number
-  onApplied: (promo: AppliedPromo | null) => void
-}) {
+export function PromoCodeInput({ cartTotal }: { cartTotal: number }) {
+  const applied = usePromoStore((s) => s.promo)
+  const setPromo = usePromoStore((s) => s.setPromo)
   const [code, setCode] = useState("")
-  const [applied, setApplied] = useState<AppliedPromo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // An already-applied promo (persisted across pages, or auto-applied from a
+  // `?promo=` link before anything was in the cart) was validated against
+  // whatever the subtotal was at that moment — re-validate against the
+  // current subtotal whenever it changes so the discount amount (and
+  // continued validity) stays correct instead of going stale.
+  const appliedCode = applied?.code
+  useEffect(() => {
+    if (!appliedCode) return
+    fetch("/api/promo/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: appliedCode, cartTotal }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid) {
+          setPromo({ code: data.code, discountAmount: data.discountAmount })
+        } else {
+          setPromo(null)
+        }
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedCode, cartTotal])
 
   async function handleApply() {
     if (!code.trim()) return
@@ -38,9 +56,7 @@ export function PromoCodeInput({
       const data = await res.json()
 
       if (data.valid) {
-        const promo = { code: data.code, discountAmount: data.discountAmount }
-        setApplied(promo)
-        onApplied(promo)
+        setPromo({ code: data.code, discountAmount: data.discountAmount })
       } else {
         setError(data.reason ?? "Invalid promo code.")
       }
@@ -52,10 +68,9 @@ export function PromoCodeInput({
   }
 
   function handleRemove() {
-    setApplied(null)
+    setPromo(null)
     setCode("")
     setError(null)
-    onApplied(null)
   }
 
   if (applied) {

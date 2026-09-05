@@ -2,18 +2,18 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
 import { ShoppingBag } from "lucide-react"
 
 import { CartLineItemRow } from "@/components/storefront/cart-line-item"
-import { PromoCodeInput, type AppliedPromo } from "@/components/storefront/promo-code-input"
+import { PromoCodeInput } from "@/components/storefront/promo-code-input"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/lib/cart/cart-context"
+import { usePromoStore } from "@/lib/promo/promo-store"
 import { formatRupees } from "@/lib/format"
 
 export default function CartPage() {
   const { items, subtotal } = useCart()
-  const [promo, setPromo] = useState<AppliedPromo | null>(null)
+  const promo = usePromoStore((s) => s.promo)
   const router = useRouter()
 
   if (items.length === 0) {
@@ -43,7 +43,7 @@ export default function CartPage() {
         </div>
 
         <div className="space-y-4 rounded-xl border border-border p-4 sm:col-span-1">
-          <PromoCodeInput cartTotal={subtotal} onApplied={setPromo} />
+          <PromoCodeInput cartTotal={subtotal} />
 
           <div className="space-y-1.5 border-t border-border pt-4 text-sm">
             <div className="flex justify-between text-muted-foreground">
