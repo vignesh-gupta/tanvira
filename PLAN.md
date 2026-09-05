@@ -17,7 +17,7 @@ TASKS:
 - [x] Added a minimal [app/(storefront)/account/profile/page.tsx](app/(storefront)/account/profile/page.tsx) as the dropdown's Profile destination (read-only name/email — no new data model)
 - [x] Manually promoted a test account to `role = "admin"` directly in Postgres, then clicked through `/admin/orders` → Ship dialog → confirmed `orders.status` transitions `confirmed` → `shipped` and `trackingUrl` is set (test fixture data cleaned up afterward)
 - [x] Confirmed the customer-facing order page ([app/(storefront)/orders/[id]/page.tsx](app/(storefront)/orders/[id]/page.tsx)) renders the tracking link once shipped
-- [ ] Verify cart-clear behavior against a real Cashfree webhook round trip (tunnel or deployed preview, per [TASKS.md](TASKS.md)) — **deferred**: no Cashfree credentials are configured in this environment (confirmed via `.env`); owner will verify this end-to-end separately
+- [x] Verified cart-clear behavior against a real Cashfree webhook round trip: signed up a test customer, completed checkout with a real sandbox payment via the owner's devtunnel-exposed dev server, and confirmed the Cashfree webhook (signature-verified) flipped `orders.status` to `confirmed` and recorded `cashfreePaymentId`/`orderStatusHistory` asynchronously — independent of the client-side redirect — and that the cart cleared client-side. Test fixtures (order, address, user) cleaned up afterward.
 
 ---
 
