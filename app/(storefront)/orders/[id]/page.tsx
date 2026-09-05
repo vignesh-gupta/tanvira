@@ -5,11 +5,15 @@ import { OrderStatusTimeline } from "@/components/storefront/order-status-timeli
 import { StatusBadge } from "@/components/storefront/status-badge"
 import { Button } from "@/components/ui/button"
 import { formatOrderNumber, formatRupees } from "@/lib/format"
-import { getOrderWithTimeline } from "@/lib/orders"
+import { getOrderWithTimelineWithOrderSeq } from "@/lib/orders"
 
-export default async function OrderStatusPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderStatusPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
-  const order = await getOrderWithTimeline(id)
+  const order = await getOrderWithTimelineWithOrderSeq(id)
 
   if (!order) notFound()
 
@@ -38,7 +42,10 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ id
       <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
         <p className="mb-2 font-medium">Items</p>
         {order.items.map((item) => (
-          <div key={item.productId} className="flex justify-between text-muted-foreground">
+          <div
+            key={item.productId}
+            className="flex justify-between text-muted-foreground"
+          >
             <span>
               {item.name} × {item.qty}
             </span>

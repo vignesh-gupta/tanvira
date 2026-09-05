@@ -12,7 +12,11 @@ import { createAddressForUser } from "@/lib/addresses"
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
-    return apiError(401, "unauthorized", "You must be signed in to view addresses.")
+    return apiError(
+      401,
+      "unauthorized",
+      "You must be signed in to view addresses."
+    )
   }
 
   const rows = await db
@@ -27,15 +31,25 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
-    return apiError(401, "unauthorized", "You must be signed in to add an address.")
+    return apiError(
+      401,
+      "unauthorized",
+      "You must be signed in to add an address."
+    )
   }
 
   const parsed = upsertAddressSchema.safeParse(await request.json())
   if (!parsed.success) {
-    return apiError(400, "validation_error", parsed.error.issues[0]?.message ?? "Invalid address.")
+    return apiError(
+      400,
+      "validation_error",
+      parsed.error.issues[0]?.message ?? "Invalid address."
+    )
   }
   const { isDefault, ...input } = parsed.data
 
-  const address = await createAddressForUser(session.user.id, input, { isDefault })
+  const address = await createAddressForUser(session.user.id, input, {
+    isDefault,
+  })
   return NextResponse.json(address, { status: 201 })
 }

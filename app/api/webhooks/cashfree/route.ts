@@ -44,8 +44,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true })
   }
 
-  console.log(body.data)
-
   const cashfreeOrderId = body.data.order.order_id
 
   const [order] = await db

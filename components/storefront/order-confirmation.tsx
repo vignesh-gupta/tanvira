@@ -58,7 +58,7 @@ export function OrderConfirmation({
         </>
       ) : stillConfirming ? (
         <>
-          <Loader2 className="mx-auto size-12 text-muted-foreground" />
+          <Loader2 className="mx-auto size-12 text-muted-foreground animate-spin" />
           <h1 className="mt-4 font-heading text-2xl">Still confirming</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             This is taking longer than usual. We&apos;ll email you the moment it&apos;s confirmed —

@@ -44,7 +44,7 @@ export function HeaderNav() {
     <span
       className={cn(
         "absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-sidebar-primary text-[10px] font-medium text-sidebar-primary-foreground transition-transform duration-150",
-        count > 0 ? "scale-100" : "scale-0",
+        count > 0 ? "scale-100" : "scale-0"
       )}
     >
       {count > 9 ? "9+" : count}
@@ -53,38 +53,11 @@ export function HeaderNav() {
 
   return (
     <header className="sticky top-0 z-40 bg-sidebar text-sidebar-foreground">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        {/* Mobile: hamburger menu (Shop / Admin / Log out — Home, Cart, Account
-            live in the bottom tab bar so they're not duplicated here). */}
-        <DropdownMenu>
-          <DropdownMenuTrigger aria-label="Open menu" className="outline-none sm:hidden">
-            <Menu className="size-5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem asChild>
-              <Link href="/products">Shop</Link>
-            </DropdownMenuItem>
-            {isAdmin ? (
-              <DropdownMenuItem asChild>
-                <Link href="/admin">
-                  <LayoutDashboard />
-                  Admin Dashboard
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-            {session?.user ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-                  <LogOut />
-                  Log out
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Link href="/" className="flex items-center gap-2 sm:static absolute left-1/2 -translate-x-1/2 sm:translate-x-0">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 min-h-12">
+        <Link
+          href="/"
+          className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2 sm:static sm:translate-x-0"
+        >
           <Image
             src="/logo.jpg"
             alt="Tanvira"
@@ -96,11 +69,17 @@ export function HeaderNav() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm sm:flex">
-          <Link href="/products" className="transition-colors hover:text-sidebar-primary">
+          <Link
+            href="/products"
+            className="transition-colors hover:text-sidebar-primary"
+          >
             Shop
           </Link>
           {isAdmin ? (
-            <Link href="/admin" className="transition-colors hover:text-sidebar-primary">
+            <Link
+              href="/admin"
+              className="transition-colors hover:text-sidebar-primary"
+            >
               Admin
             </Link>
           ) : null}
@@ -145,7 +124,10 @@ export function HeaderNav() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={handleLogout}
+                  >
                     <LogOut />
                     Log out
                   </DropdownMenuItem>
@@ -164,7 +146,7 @@ export function HeaderNav() {
           <Link
             href="/cart"
             aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
-            className="relative transition-colors hover:text-sidebar-primary"
+            className="relative transition-colors hover:text-sidebar-primary hidden sm:block"
           >
             <ShoppingBag className="size-5" />
             {cartBadge}

@@ -42,7 +42,7 @@ export default async function OrderHistoryPage() {
         {myOrders.map((order) => (
           <Link
             key={order.id}
-            href={`/orders/${order.id}`}
+            href={`/orders/TVA${order.orderSeq}`}
             className="flex items-center justify-between p-4 transition-colors hover:bg-muted"
           >
             <div>
